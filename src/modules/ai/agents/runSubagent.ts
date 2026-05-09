@@ -6,6 +6,7 @@ import type { ToolContext } from "../tools/context";
 import { buildFsTools } from "../tools/fs";
 import { buildSearchTools } from "../tools/search";
 import { SUBAGENTS, type SubagentType } from "./registry";
+import { usePreferencesStore } from "@/modules/settings/preferences";
 
 const SUBAGENT_MAX_STEPS = 12;
 
@@ -34,6 +35,7 @@ export async function runSubagent({
 }: Args): Promise<RunResult> {
   const def = SUBAGENTS[type];
   if (!def) throw new Error(`unknown subagent type: ${type}`);
+  const prefs = usePreferencesStore.getState();
 
   // Subagents only get read-only tools. Build directly from the read-only
   // builders to avoid pulling in mutating/recursive tools.
@@ -47,7 +49,9 @@ export async function runSubagent({
   }
 
   const model = await buildLanguageModel(getModel(modelId).provider, keys, getModel(modelId).id, {
-    lmstudioBaseURL,
+    lmstudioBaseURL: lmstudioBaseURL ?? prefs.lmstudioBaseURL,
+    ollamaBaseURL: prefs.ollamaBaseURL,
+    openaiCompatibleBaseURL: prefs.openaiCompatibleBaseURL,
   });
 
   // The Agent constructor's tools generic infers `never` when passed a

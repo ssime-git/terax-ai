@@ -1,10 +1,12 @@
 import {
   DEFAULT_AUTOCOMPLETE_MODEL,
   LMSTUDIO_DEFAULT_BASE_URL,
+  OLLAMA_DEFAULT_BASE_URL,
   type AutocompleteProviderId,
 } from "@/modules/ai/config";
 import { buildLanguageModel } from "@/modules/ai/lib/agent";
 import { EMPTY_PROVIDER_KEYS } from "@/modules/ai/lib/keyring";
+import { usePreferencesStore } from "@/modules/settings/preferences";
 import { generateText } from "ai";
 import {
   buildUserPrompt,
@@ -15,9 +17,11 @@ import {
 export type CompletionDeps = {
   provider: AutocompleteProviderId;
   modelId: string;
-  /** API key for the configured provider, or null for keyless (LM Studio). */
+  /** API key or optional token for the configured provider, or null for keyless providers. */
   apiKey: string | null;
   lmstudioBaseURL: string;
+  ollamaBaseURL: string;
+  openaiCompatibleBaseURL: string;
 };
 
 const MAX_OUTPUT_TOKENS_DEFAULT = 128;
@@ -34,8 +38,15 @@ export async function requestCompletion(
   const modelId =
     deps.modelId.trim() || DEFAULT_AUTOCOMPLETE_MODEL[deps.provider];
   const keys = { ...EMPTY_PROVIDER_KEYS, [deps.provider]: deps.apiKey };
+  const prefs = usePreferencesStore.getState();
   const model = await buildLanguageModel(deps.provider, keys, modelId, {
     lmstudioBaseURL: deps.lmstudioBaseURL || LMSTUDIO_DEFAULT_BASE_URL,
+    ollamaBaseURL:
+      deps.ollamaBaseURL || prefs.ollamaBaseURL || OLLAMA_DEFAULT_BASE_URL,
+    openaiCompatibleBaseURL:
+      deps.openaiCompatibleBaseURL || prefs.openaiCompatibleBaseURL,
+    openaiCompatibleToken:
+      deps.provider === "openai-compatible" ? deps.apiKey : null,
   });
 
   const isReasoning = /\bgpt-oss\b/i.test(modelId);

@@ -5,6 +5,7 @@ export {
   type TerminalTab,
   type EditorTab,
   type PreviewTab,
+  type MarkdownPreviewTab,
   type AiDiffTab,
   type AiDiffStatus,
 } from "./lib/useTabs";

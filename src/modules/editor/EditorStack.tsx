@@ -7,16 +7,20 @@ type Props = {
   tabs: Tab[];
   activeId: number;
   onDirtyChange: (id: number, dirty: boolean) => void;
+  onSaved: (id: number) => void;
   registerHandle: (id: number, handle: EditorPaneHandle | null) => void;
   onCloseTab: (id: number) => void;
+  onOpenMarkdownPreview: (path: string) => void;
 };
 
 export function EditorStack({
   tabs,
   activeId,
   onDirtyChange,
+  onSaved,
   registerHandle,
   onCloseTab,
+  onOpenMarkdownPreview,
 }: Props) {
   const editors = tabs.filter((t): t is EditorTab => t.kind === "editor");
 
@@ -27,6 +31,8 @@ export function EditorStack({
   const registerRef = useRef(registerHandle);
   const dirtyRef = useRef(onDirtyChange);
   const closeRef = useRef(onCloseTab);
+  const savedRef = useRef(onSaved);
+  const previewRef = useRef(onOpenMarkdownPreview);
   useEffect(() => {
     registerRef.current = registerHandle;
   }, [registerHandle]);
@@ -36,12 +42,21 @@ export function EditorStack({
   useEffect(() => {
     closeRef.current = onCloseTab;
   }, [onCloseTab]);
+  useEffect(() => {
+    savedRef.current = onSaved;
+  }, [onSaved]);
+  useEffect(() => {
+    previewRef.current = onOpenMarkdownPreview;
+  }, [onOpenMarkdownPreview]);
 
   const refCallbacks = useRef(
     new Map<number, (h: EditorPaneHandle | null) => void>(),
   );
   const dirtyCallbacks = useRef(new Map<number, (dirty: boolean) => void>());
   const closeCallbacks = useRef(new Map<number, () => void>());
+  const savedCallbacks = useRef(new Map<number, () => void>());
+  const previewCallbacks = useRef(new Map<number, () => void>());
+  const previewPaths = useRef(new Map<number, string>());
 
   const getRefCallback = (id: number) => {
     let cb = refCallbacks.current.get(id);
@@ -67,6 +82,23 @@ export function EditorStack({
     }
     return cb;
   };
+  const getSavedCallback = (id: number) => {
+    let cb = savedCallbacks.current.get(id);
+    if (!cb) {
+      cb = () => savedRef.current(id);
+      savedCallbacks.current.set(id, cb);
+    }
+    return cb;
+  };
+  const getPreviewCallback = (id: number, path: string) => {
+    let cb = previewCallbacks.current.get(id);
+    if (!cb || previewPaths.current.get(id) !== path) {
+      cb = () => previewRef.current(path);
+      previewCallbacks.current.set(id, cb);
+      previewPaths.current.set(id, path);
+    }
+    return cb;
+  };
 
   // Drop callback entries for closed tabs to avoid unbounded growth.
   useEffect(() => {
@@ -79,6 +111,15 @@ export function EditorStack({
     }
     for (const id of closeCallbacks.current.keys()) {
       if (!live.has(id)) closeCallbacks.current.delete(id);
+    }
+    for (const id of savedCallbacks.current.keys()) {
+      if (!live.has(id)) savedCallbacks.current.delete(id);
+    }
+    for (const id of previewCallbacks.current.keys()) {
+      if (!live.has(id)) previewCallbacks.current.delete(id);
+    }
+    for (const id of previewPaths.current.keys()) {
+      if (!live.has(id)) previewPaths.current.delete(id);
     }
   }, [editors]);
 
@@ -101,7 +142,9 @@ export function EditorStack({
                 ref={getRefCallback(t.id)}
                 path={t.path}
                 onDirtyChange={getDirtyCallback(t.id)}
+                onSaved={getSavedCallback(t.id)}
                 onClose={getCloseCallback(t.id)}
+                onOpenMarkdownPreview={getPreviewCallback(t.id, t.path)}
               />
             </div>
           </div>

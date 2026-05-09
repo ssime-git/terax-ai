@@ -21,6 +21,9 @@ type Props = {
   currentKey: string | null;
   onSave: (key: string) => Promise<void>;
   onClear: () => Promise<void>;
+  required?: boolean;
+  actionLabel?: string;
+  title?: string;
 };
 
 function maskKey(key: string): string {
@@ -33,6 +36,9 @@ export function ProviderKeyCard({
   currentKey,
   onSave,
   onClear,
+  required = true,
+  actionLabel = "Get key",
+  title,
 }: Props) {
   const [editing, setEditing] = useState(!currentKey);
   const [value, setValue] = useState("");
@@ -46,8 +52,23 @@ export function ProviderKeyCard({
 
   const submit = async () => {
     const trimmed = value.trim();
-    if (!trimmed) {
+    if (!trimmed && required) {
       setError("Enter your API key.");
+      return;
+    }
+    if (!trimmed && !required) {
+      setSaving(true);
+      setError(null);
+      try {
+        await onClear();
+        setValue("");
+        setReveal(false);
+        setEditing(true);
+      } catch (e) {
+        setError(`Failed to clear: ${String(e)}`);
+      } finally {
+        setSaving(false);
+      }
       return;
     }
     if (provider.keyPrefix && !trimmed.startsWith(provider.keyPrefix)) {
@@ -82,7 +103,9 @@ export function ProviderKeyCard({
     >
       <div className="flex items-center gap-2">
         <ProviderIcon provider={provider.id} size={16} />
-        <span className="text-[12.5px] font-medium">{provider.label}</span>
+        <span className="text-[12.5px] font-medium">
+          {title ?? provider.label}
+        </span>
         {currentKey ? (
           <Badge
             variant="outline"
@@ -101,7 +124,7 @@ export function ProviderKeyCard({
           onClick={() => void openUrl(provider.consoleUrl)}
           className="ml-auto text-[10.5px] text-muted-foreground underline-offset-2 hover:text-foreground hover:underline"
         >
-          Get key
+          {actionLabel}
         </button>
       </div>
 

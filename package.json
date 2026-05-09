@@ -7,7 +7,9 @@
     "dev": "vite",
     "build": "tsc && vite build",
     "preview": "vite preview",
-    "tauri": "tauri"
+    "tauri": "tauri",
+    "test": "vitest",
+    "test:run": "vitest run"
   },
   "dependencies": {
     "@ai-sdk/anthropic": "^3.0.71",
@@ -42,6 +44,7 @@
     "@radix-ui/react-use-controllable-state": "^1.2.2",
     "@replit/codemirror-vim": "^6.3.0",
     "@streamdown/math": "^1.0.2",
+    "@streamdown/mermaid": "^1.0.2",
     "@tailwindcss/vite": "^4.2.3",
     "@tauri-apps/api": "^2",
     "@tauri-apps/plugin-autostart": "~2.5.1",
@@ -88,12 +91,16 @@
   },
   "devDependencies": {
     "@tauri-apps/cli": "^2",
+    "@testing-library/jest-dom": "^6.6.4",
+    "@testing-library/react": "^16.3.0",
     "@types/node": "^25.6.0",
     "@types/react": "^19.1.8",
     "@types/react-dom": "^19.1.6",
     "@vitejs/plugin-react": "^4.6.0",
+    "jsdom": "^26.1.0",
     "typescript": "~5.8.3",
-    "vite": "^7.0.4"
+    "vite": "^7.0.4",
+    "vitest": "^3.2.4"
   },
   "pnpm": {
     "overrides": {

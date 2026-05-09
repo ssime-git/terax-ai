@@ -5,6 +5,7 @@ import { createTeraxAgent } from "./agent";
 import type { ProviderKeys } from "./keyring";
 import { native } from "./native";
 import type { ToolContext } from "../tools/tools";
+import { usePreferencesStore } from "@/modules/settings/preferences";
 
 const TERAX_MD_MAX_BYTES = 32 * 1024;
 type MemoryCacheEntry = { content: string | null; mtime: number };
@@ -62,6 +63,7 @@ export function createContextAwareTransport(deps: Deps) {
       [k: string]: unknown;
     }) {
       const live = deps.getLive();
+      const prefs = usePreferencesStore.getState();
       const projectMemory = await readTeraxMd(live.workspaceRoot);
       const agent = await createTeraxAgent({
         keys: deps.getKeys(),
@@ -70,7 +72,11 @@ export function createContextAwareTransport(deps: Deps) {
         agentPersona: deps.getAgentPersona(),
         toolContext: deps.toolContext,
         onStep: deps.onStep,
-        lmstudioBaseURL: deps.getLmstudioBaseURL?.(),
+        lmstudioBaseURL: deps.getLmstudioBaseURL?.() ?? prefs.lmstudioBaseURL,
+        ollamaBaseURL: prefs.ollamaBaseURL,
+        openaiCompatibleBaseURL: prefs.openaiCompatibleBaseURL,
+        ollamaModelId: prefs.ollamaModelId,
+        openaiCompatibleModelId: prefs.openaiCompatibleModelId,
         planMode: deps.getPlanMode?.(),
         projectMemory,
       });
@@ -83,6 +89,7 @@ export function createContextAwareTransport(deps: Deps) {
     },
     async reconnectToStream(options: unknown) {
       const live = deps.getLive();
+      const prefs = usePreferencesStore.getState();
       const projectMemory = await readTeraxMd(live.workspaceRoot);
       const agent = await createTeraxAgent({
         keys: deps.getKeys(),
@@ -91,7 +98,11 @@ export function createContextAwareTransport(deps: Deps) {
         agentPersona: deps.getAgentPersona(),
         toolContext: deps.toolContext,
         onStep: deps.onStep,
-        lmstudioBaseURL: deps.getLmstudioBaseURL?.(),
+        lmstudioBaseURL: deps.getLmstudioBaseURL?.() ?? prefs.lmstudioBaseURL,
+        ollamaBaseURL: prefs.ollamaBaseURL,
+        openaiCompatibleBaseURL: prefs.openaiCompatibleBaseURL,
+        ollamaModelId: prefs.ollamaModelId,
+        openaiCompatibleModelId: prefs.openaiCompatibleModelId,
         planMode: deps.getPlanMode?.(),
         projectMemory,
       });

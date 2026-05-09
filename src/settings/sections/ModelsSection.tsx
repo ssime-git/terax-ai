@@ -12,6 +12,7 @@ import {
   AUTOCOMPLETE_PROVIDERS,
   DEFAULT_AUTOCOMPLETE_MODEL,
   MODELS,
+  OLLAMA_DEFAULT_BASE_URL,
   PROVIDERS,
   getModel,
   getProvider,
@@ -29,11 +30,16 @@ import {
   setAutocompleteProvider,
   setDefaultModel,
   setLmstudioBaseURL,
+  setOllamaBaseURL,
+  setOllamaModelId,
+  setOpenAICompatibleBaseURL,
+  setOpenAICompatibleModelId,
 } from "@/modules/settings/store";
 import { ArrowDown01Icon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { useEffect, useState } from "react";
 import { ProviderIcon } from "../components/ProviderIcon";
+import { ProviderEndpointCard } from "../components/ProviderEndpointCard";
 import { ProviderKeyCard } from "../components/ProviderKeyCard";
 import { SectionHeader } from "../components/SectionHeader";
 
@@ -42,6 +48,14 @@ type KeysMap = Record<ProviderId, string | null>;
 export function ModelsSection() {
   const [keys, setKeys] = useState<KeysMap | null>(null);
   const defaultModel = usePreferencesStore((s) => s.defaultModelId);
+  const ollamaBaseURL = usePreferencesStore((s) => s.ollamaBaseURL);
+  const ollamaModelId = usePreferencesStore((s) => s.ollamaModelId);
+  const openaiCompatibleBaseURL = usePreferencesStore(
+    (s) => s.openaiCompatibleBaseURL,
+  );
+  const openaiCompatibleModelId = usePreferencesStore(
+    (s) => s.openaiCompatibleModelId,
+  );
 
   useEffect(() => {
     void getAllKeys().then(setKeys);
@@ -99,15 +113,15 @@ export function ModelsSection() {
             </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="start" className="min-w-[260px]">
-            {PROVIDERS.filter((p) => providerNeedsKey(p.id)).map((p) => {
+            {PROVIDERS.map((p) => {
               const models = MODELS.filter((m) => m.provider === p.id);
-              const hasKey = !!keys[p.id];
+              const hasKey = providerNeedsKey(p.id) ? !!keys[p.id] : true;
               return (
                 <div key={p.id} className="px-1 pt-1.5">
                   <div className="mb-1 flex items-center gap-1.5 px-2 text-[10px] font-medium tracking-wide text-muted-foreground uppercase">
                     <ProviderIcon provider={p.id} size={11} />
                     <span>{p.label}</span>
-                    {!hasKey && (
+                    {providerNeedsKey(p.id) && !hasKey && (
                       <span className="ml-auto text-[9.5px] normal-case tracking-normal text-muted-foreground/70">
                         no key
                       </span>
@@ -160,6 +174,44 @@ export function ModelsSection() {
         </div>
       </div>
 
+      <div className="flex flex-col gap-2">
+        <SectionHeader
+          title="Local endpoints"
+          description="Configure Ollama or any OpenAI-compatible endpoint with a base URL, model name, and optional token."
+        />
+        <div className="grid grid-cols-1 gap-2 xl:grid-cols-2">
+          <ProviderEndpointCard
+            provider={getProvider("ollama")}
+            currentBaseURL={ollamaBaseURL}
+            currentModelId={ollamaModelId}
+            baseURLPlaceholder={OLLAMA_DEFAULT_BASE_URL}
+            modelPlaceholder={DEFAULT_AUTOCOMPLETE_MODEL.ollama}
+            onSaveBaseURL={setOllamaBaseURL}
+            onSaveModelId={setOllamaModelId}
+          />
+          <ProviderEndpointCard
+            provider={getProvider("openai-compatible")}
+            currentBaseURL={openaiCompatibleBaseURL}
+            currentModelId={openaiCompatibleModelId}
+            currentToken={keys["openai-compatible"]}
+            showToken
+            baseURLPlaceholder="https://api.example.com/v1"
+            modelPlaceholder={DEFAULT_AUTOCOMPLETE_MODEL["openai-compatible"]}
+            tokenPlaceholder="Paste bearer token"
+            onSaveBaseURL={setOpenAICompatibleBaseURL}
+            onSaveModelId={setOpenAICompatibleModelId}
+            onSaveToken={async (v) => {
+              await setKey("openai-compatible", v);
+              await emitKeysChanged();
+            }}
+            onClearToken={async () => {
+              await clearKey("openai-compatible");
+              await emitKeysChanged();
+            }}
+          />
+        </div>
+      </div>
+
       <AutocompleteBlock keys={keys} />
     </div>
   );
@@ -170,15 +222,27 @@ function AutocompleteBlock({ keys }: { keys: KeysMap }) {
   const provider = usePreferencesStore((s) => s.autocompleteProvider);
   const modelId = usePreferencesStore((s) => s.autocompleteModelId);
   const lmstudioBaseURL = usePreferencesStore((s) => s.lmstudioBaseURL);
+  const ollamaBaseURL = usePreferencesStore((s) => s.ollamaBaseURL);
+  const openaiCompatibleBaseURL = usePreferencesStore(
+    (s) => s.openaiCompatibleBaseURL,
+  );
 
   const [modelDraft, setModelDraft] = useState(modelId);
-  const [urlDraft, setUrlDraft] = useState(lmstudioBaseURL);
+  const [lmstudioUrlDraft, setLmstudioUrlDraft] = useState(lmstudioBaseURL);
+  const [ollamaUrlDraft, setOllamaUrlDraft] = useState(ollamaBaseURL);
+  const [openaiCompatibleUrlDraft, setOpenaiCompatibleUrlDraft] =
+    useState(openaiCompatibleBaseURL);
   const [testStatus, setTestStatus] = useState<
     "idle" | "testing" | "ok" | "fail"
   >("idle");
 
   useEffect(() => setModelDraft(modelId), [modelId]);
-  useEffect(() => setUrlDraft(lmstudioBaseURL), [lmstudioBaseURL]);
+  useEffect(() => setLmstudioUrlDraft(lmstudioBaseURL), [lmstudioBaseURL]);
+  useEffect(() => setOllamaUrlDraft(ollamaBaseURL), [ollamaBaseURL]);
+  useEffect(
+    () => setOpenaiCompatibleUrlDraft(openaiCompatibleBaseURL),
+    [openaiCompatibleBaseURL],
+  );
 
   const onProviderChange = (next: AutocompleteProviderId) => {
     void setAutocompleteProvider(next);
@@ -190,12 +254,41 @@ function AutocompleteBlock({ keys }: { keys: KeysMap }) {
 
   const providerInfo = getProvider(provider);
   const hasKey = providerNeedsKey(provider) ? !!keys[provider] : true;
+  const currentToken = keys[provider];
+  const currentBaseURL =
+    provider === "lmstudio"
+      ? lmstudioUrlDraft
+      : provider === "ollama"
+        ? ollamaUrlDraft
+        : provider === "openai-compatible"
+          ? openaiCompatibleUrlDraft
+          : "";
+  const hasBaseURL =
+    provider === "lmstudio" ||
+    provider === "ollama" ||
+    provider === "openai-compatible";
 
-  const testLmStudio = async () => {
+  const saveBaseURL = async (value: string) => {
+    const next = value.trim();
+    if (provider === "lmstudio") {
+      if (next && next !== lmstudioBaseURL) await setLmstudioBaseURL(next);
+    } else if (provider === "ollama") {
+      if (next && next !== ollamaBaseURL) await setOllamaBaseURL(next);
+    } else if (provider === "openai-compatible") {
+      if (next && next !== openaiCompatibleBaseURL)
+        await setOpenAICompatibleBaseURL(next);
+    }
+  };
+
+  const testBaseURL = async () => {
+    if (!hasBaseURL) return;
     setTestStatus("testing");
     try {
-      const url = urlDraft.replace(/\/$/, "") + "/models";
-      const res = await fetch(url, { method: "GET" });
+      const url = currentBaseURL.replace(/\/$/, "") + "/models";
+      const headers: Record<string, string> = {};
+      const token = currentToken?.trim();
+      if (token) headers.Authorization = `Bearer ${token}`;
+      const res = await fetch(url, { method: "GET", headers });
       setTestStatus(res.ok ? "ok" : "fail");
     } catch {
       setTestStatus("fail");
@@ -265,25 +358,47 @@ function AutocompleteBlock({ keys }: { keys: KeysMap }) {
           />
         </div>
 
-        {provider === "lmstudio" ? (
+        {hasBaseURL ? (
           <div className="flex flex-col gap-1.5">
-            <Label>LM Studio base URL</Label>
+            <Label>
+              {provider === "lmstudio"
+                ? "LM Studio base URL"
+                : provider === "ollama"
+                  ? "Ollama base URL"
+                  : "OpenAI-compatible base URL"}
+            </Label>
             <div className="flex gap-1.5">
               <Input
-                value={urlDraft}
-                onChange={(e) => setUrlDraft(e.target.value)}
-                onBlur={() => {
-                  const v = urlDraft.trim();
-                  if (v && v !== lmstudioBaseURL) void setLmstudioBaseURL(v);
+                value={currentBaseURL}
+                onChange={(e) => {
+                  const next = e.target.value;
+                  if (provider === "lmstudio") setLmstudioUrlDraft(next);
+                  else if (provider === "ollama") setOllamaUrlDraft(next);
+                  else setOpenaiCompatibleUrlDraft(next);
                 }}
-                placeholder="http://localhost:1234/v1"
+                onBlur={() => {
+                  const value =
+                    provider === "lmstudio"
+                      ? lmstudioUrlDraft
+                      : provider === "ollama"
+                        ? ollamaUrlDraft
+                        : openaiCompatibleUrlDraft;
+                  void saveBaseURL(value);
+                }}
+                placeholder={
+                  provider === "lmstudio"
+                    ? "http://localhost:1234/v1"
+                    : provider === "ollama"
+                      ? OLLAMA_DEFAULT_BASE_URL
+                      : "https://api.example.com/v1"
+                }
                 spellCheck={false}
                 className="h-8 flex-1 font-mono text-[11.5px]"
               />
               <Button
                 size="sm"
                 variant="outline"
-                onClick={() => void testLmStudio()}
+                onClick={() => void testBaseURL()}
                 className="h-8 px-2.5 text-[11px]"
               >
                 Test
@@ -295,7 +410,7 @@ function AutocompleteBlock({ keys }: { keys: KeysMap }) {
               </span>
             ) : testStatus === "fail" ? (
               <span className="text-[10.5px] text-destructive">
-                Could not reach the server. Is LM Studio running?
+                Could not reach the server.
               </span>
             ) : testStatus === "testing" ? (
               <span className="text-[10.5px] text-muted-foreground">

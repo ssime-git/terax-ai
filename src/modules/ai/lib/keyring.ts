@@ -4,6 +4,7 @@ import {
   KEYRING_SERVICE,
   PROVIDERS,
   providerNeedsKey,
+  providerSupportsStoredKey,
   type ProviderId,
 } from "../config";
 
@@ -17,14 +18,18 @@ export const EMPTY_PROVIDER_KEYS: ProviderKeys = {
   cerebras: null,
   groq: null,
   lmstudio: null,
+  ollama: null,
+  "openai-compatible": null,
 };
 
 export async function getKey(provider: ProviderId): Promise<string | null> {
-  if (!providerNeedsKey(provider)) return null;
+  if (!providerSupportsStoredKey(provider)) return null;
   try {
+    const account = getProvider(provider).keyringAccount;
+    if (!account) return null;
     const v = await invoke<string | null>("secrets_get", {
       service: KEYRING_SERVICE,
-      account: getProvider(provider).keyringAccount,
+      account,
     });
     return v && v.length > 0 ? v : null;
   } catch {
@@ -33,24 +38,28 @@ export async function getKey(provider: ProviderId): Promise<string | null> {
 }
 
 export async function setKey(provider: ProviderId, key: string): Promise<void> {
-  if (!providerNeedsKey(provider)) {
+  if (!providerSupportsStoredKey(provider)) {
     throw new Error(`${provider} does not use an API key`);
   }
   const trimmed = key.trim();
   if (!trimmed) throw new Error("API key is empty");
+  const account = getProvider(provider).keyringAccount;
+  if (!account) throw new Error(`${provider} does not have a keyring account`);
   await invoke("secrets_set", {
     service: KEYRING_SERVICE,
-    account: getProvider(provider).keyringAccount,
+    account,
     password: trimmed,
   });
 }
 
 export async function clearKey(provider: ProviderId): Promise<void> {
-  if (!providerNeedsKey(provider)) return;
+  if (!providerSupportsStoredKey(provider)) return;
+  const account = getProvider(provider).keyringAccount;
+  if (!account) return;
   try {
     await invoke("secrets_delete", {
       service: KEYRING_SERVICE,
-      account: getProvider(provider).keyringAccount,
+      account,
     });
   } catch {
     // already absent — fine
@@ -59,11 +68,11 @@ export async function clearKey(provider: ProviderId): Promise<void> {
 
 export async function getAllKeys(): Promise<ProviderKeys> {
   const out = { ...EMPTY_PROVIDER_KEYS };
-  const need = PROVIDERS.filter((p) => providerNeedsKey(p.id));
+  const need = PROVIDERS.filter((p) => providerSupportsStoredKey(p.id));
   try {
     const results = await invoke<(string | null)[]>("secrets_get_all", {
       service: KEYRING_SERVICE,
-      accounts: need.map((p) => p.keyringAccount),
+      accounts: need.map((p) => p.keyringAccount ?? ""),
     });
     need.forEach((p, i) => {
       const v = results[i];
@@ -80,5 +89,7 @@ export async function getAllKeys(): Promise<ProviderKeys> {
 }
 
 export function hasAnyKey(keys: ProviderKeys): boolean {
-  return PROVIDERS.some((p) => providerNeedsKey(p.id) && !!keys[p.id]);
+  return PROVIDERS.some(
+    (p) => (providerSupportsStoredKey(p.id) && !!keys[p.id]) || !providerNeedsKey(p.id),
+  );
 }

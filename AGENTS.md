@@ -1,5 +1,3 @@
-TERAX.md
-
 <!-- gitnexus:start -->
 # GitNexus — Code Intelligence
 

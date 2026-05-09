@@ -9,6 +9,7 @@ import {
   getModel,
   type ModelId,
   type ProviderId,
+  providerNeedsKey,
 } from "../config";
 import { usePreferencesStore } from "@/modules/settings/preferences";
 import { BUILTIN_AGENTS } from "../lib/agents";
@@ -455,7 +456,8 @@ export function getActiveProviderKey(): string | null {
 
 export function hasKeyForModel(modelId: ModelId): boolean {
   const { apiKeys } = useChatStore.getState();
-  return !!apiKeys[getModel(modelId).provider];
+  const provider = getModel(modelId).provider;
+  return !providerNeedsKey(provider) || !!apiKeys[provider];
 }
 
 export function getOrCreateChat(sessionId: string): Chat<UIMessage> {
@@ -476,7 +478,8 @@ export async function sendMessage(text: string): Promise<boolean> {
   const state = useChatStore.getState();
   const sessionId = state.activeSessionId;
   if (!sessionId) return false;
-  if (!getActiveProviderKey()) return false;
+  const provider = getModel(state.selectedModelId).provider;
+  if (providerNeedsKey(provider) && !state.apiKeys[provider]) return false;
   const c = getOrCreateChat(sessionId);
   await c.sendMessage({ text });
   return true;

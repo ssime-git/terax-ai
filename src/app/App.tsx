@@ -30,7 +30,12 @@ import {
   type SearchInlineHandle,
   type SearchTarget,
 } from "@/modules/header";
-import { PreviewStack, type PreviewPaneHandle } from "@/modules/preview";
+import {
+  MarkdownPreviewStack,
+  PreviewStack,
+  type MarkdownPreviewPaneHandle,
+  type PreviewPaneHandle,
+} from "@/modules/preview";
 import { openSettingsWindow } from "@/modules/settings/openSettingsWindow";
 import { usePreferencesStore } from "@/modules/settings/preferences";
 import { onKeysChanged } from "@/modules/settings/store";
@@ -68,6 +73,7 @@ export default function App() {
     newTab,
     openFileTab,
     newPreviewTab,
+    newMarkdownPreviewTab,
     openAiDiffTab,
     setAiDiffStatus,
     closeTab,
@@ -82,6 +88,9 @@ export default function App() {
   const terminalRefs = useRef<Map<number, TerminalPaneHandle>>(new Map());
   const editorRefs = useRef<Map<number, EditorPaneHandle>>(new Map());
   const previewRefs = useRef<Map<number, PreviewPaneHandle>>(new Map());
+  const markdownPreviewRefs = useRef<Map<number, MarkdownPreviewPaneHandle>>(
+    new Map(),
+  );
   const detectedUrls = useRef<Map<number, string>>(new Map());
   const [activeDetectedUrl, setActiveDetectedUrl] = useState<string | null>(
     null,
@@ -159,6 +168,7 @@ export default function App() {
   const isTerminalTab = activeTab?.kind === "terminal";
   const isEditorTab = activeTab?.kind === "editor";
   const isPreviewTab = activeTab?.kind === "preview";
+  const isMarkdownPreviewTab = activeTab?.kind === "markdown-preview";
   const isAiDiffTab = activeTab?.kind === "ai-diff";
 
   // When an AI diff is approved (write_file applied to disk), reload any
@@ -224,6 +234,7 @@ export default function App() {
       terminalRefs.current.delete(id);
       editorRefs.current.delete(id);
       previewRefs.current.delete(id);
+      markdownPreviewRefs.current.delete(id);
       detectedUrls.current.delete(id);
       closeTab(id);
     },
@@ -407,7 +418,7 @@ export default function App() {
   const handlePathRenamed = useCallback(
     (from: string, to: string) => {
       for (const t of tabs) {
-        if (t.kind !== "editor") continue;
+        if (t.kind !== "editor" && t.kind !== "markdown-preview") continue;
         if (t.path === from) {
           const i = to.lastIndexOf("/");
           updateTab(t.id, { path: to, title: i === -1 ? to : to.slice(i + 1) });
@@ -428,7 +439,7 @@ export default function App() {
   const handlePathDeleted = useCallback(
     (path: string) => {
       for (const t of tabs) {
-        if (t.kind !== "editor") continue;
+        if (t.kind !== "editor" && t.kind !== "markdown-preview") continue;
         if (t.path === path || t.path.startsWith(`${path}/`)) {
           disposeTab(t.id);
         }
@@ -449,6 +460,17 @@ export default function App() {
       return id;
     },
     [newPreviewTab],
+  );
+
+  const openMarkdownPreviewTab = useCallback(
+    (path: string) => {
+      const id = newMarkdownPreviewTab(path);
+      if (id !== null) {
+        setTimeout(() => markdownPreviewRefs.current.get(id)?.reload(), 0);
+      }
+      return id;
+    },
+    [newMarkdownPreviewTab],
   );
 
   const shortcutHandlers = useMemo<ShortcutHandlers>(
@@ -506,8 +528,21 @@ export default function App() {
     [],
   );
 
+  const registerMarkdownPreviewHandle = useCallback(
+    (id: number, h: MarkdownPreviewPaneHandle | null) => {
+      if (h) markdownPreviewRefs.current.set(id, h);
+      else markdownPreviewRefs.current.delete(id);
+    },
+    [],
+  );
+
   const handlePreviewUrl = useCallback(
     (id: number, url: string) => updateTab(id, { url }),
+    [updateTab],
+  );
+
+  const handleMarkdownPreviewPath = useCallback(
+    (id: number, path: string) => updateTab(id, { path }),
     [updateTab],
   );
 
@@ -519,6 +554,25 @@ export default function App() {
   const handleEditorDirty = useCallback(
     (id: number, dirty: boolean) => updateTab(id, { dirty }),
     [updateTab],
+  );
+
+  const handleEditorSaved = useCallback(
+    (id: number) => {
+      const editor = tabs.find(
+        (t): t is Extract<(typeof tabs)[number], { kind: "editor" }> =>
+          t.kind === "editor" && t.id === id,
+      );
+      if (!editor) return;
+      const markdownTabs = tabs.filter(
+        (t): t is Extract<(typeof tabs)[number], { kind: "markdown-preview" }> =>
+          t.kind === "markdown-preview",
+      );
+      for (const t of markdownTabs) {
+        if (t.path !== editor.path) continue;
+        markdownPreviewRefs.current.get(t.id)?.reload();
+      }
+    },
+    [tabs],
   );
 
   const searchTarget = useMemo<SearchTarget>(() => {
@@ -647,7 +701,24 @@ export default function App() {
                         activeId={activeId}
                         registerHandle={registerEditorHandle}
                         onDirtyChange={handleEditorDirty}
+                        onSaved={handleEditorSaved}
                         onCloseTab={disposeTab}
+                        onOpenMarkdownPreview={openMarkdownPreviewTab}
+                      />
+                    </div>
+                    <div
+                      className={cn(
+                        "absolute inset-0 px-3 pt-2 pb-2",
+                        !isMarkdownPreviewTab &&
+                          "invisible pointer-events-none",
+                      )}
+                      aria-hidden={!isMarkdownPreviewTab}
+                    >
+                      <MarkdownPreviewStack
+                        tabs={tabs}
+                        activeId={activeId}
+                        registerHandle={registerMarkdownPreviewHandle}
+                        onPathChange={handleMarkdownPreviewPath}
                       />
                     </div>
                     <div

@@ -4,6 +4,7 @@ import {
   DEFAULT_AUTOCOMPLETE_MODEL,
   DEFAULT_MODEL_ID,
   LMSTUDIO_DEFAULT_BASE_URL,
+  OLLAMA_DEFAULT_BASE_URL,
   type AutocompleteProviderId,
   type ModelId,
 } from "@/modules/ai/config";
@@ -47,6 +48,10 @@ export type Preferences = {
   autocompleteProvider: AutocompleteProviderId;
   autocompleteModelId: string;
   lmstudioBaseURL: string;
+  ollamaBaseURL: string;
+  ollamaModelId: string;
+  openaiCompatibleBaseURL: string;
+  openaiCompatibleModelId: string;
   vimMode: boolean;
 };
 
@@ -61,6 +66,10 @@ const KEY_AUTOCOMPLETE_ENABLED = "autocompleteEnabled";
 const KEY_AUTOCOMPLETE_PROVIDER = "autocompleteProvider";
 const KEY_AUTOCOMPLETE_MODEL = "autocompleteModelId";
 const KEY_LMSTUDIO_BASE_URL = "lmstudioBaseURL";
+const KEY_OLLAMA_BASE_URL = "ollamaBaseURL";
+const KEY_OLLAMA_MODEL_ID = "ollamaModelId";
+const KEY_OPENAI_COMPATIBLE_BASE_URL = "openaiCompatibleBaseURL";
+const KEY_OPENAI_COMPATIBLE_MODEL_ID = "openaiCompatibleModelId";
 const KEY_VIM_MODE = "vimMode";
 
 export const DEFAULT_PREFERENCES: Preferences = {
@@ -74,6 +83,10 @@ export const DEFAULT_PREFERENCES: Preferences = {
   autocompleteProvider: "cerebras",
   autocompleteModelId: DEFAULT_AUTOCOMPLETE_MODEL.cerebras,
   lmstudioBaseURL: LMSTUDIO_DEFAULT_BASE_URL,
+  ollamaBaseURL: OLLAMA_DEFAULT_BASE_URL,
+  ollamaModelId: DEFAULT_AUTOCOMPLETE_MODEL.ollama,
+  openaiCompatibleBaseURL: "",
+  openaiCompatibleModelId: DEFAULT_AUTOCOMPLETE_MODEL["openai-compatible"],
   vimMode: false,
 };
 
@@ -110,6 +123,16 @@ export async function loadPreferences(): Promise<Preferences> {
     lmstudioBaseURL:
       get<string>(KEY_LMSTUDIO_BASE_URL) ??
       DEFAULT_PREFERENCES.lmstudioBaseURL,
+    ollamaBaseURL:
+      get<string>(KEY_OLLAMA_BASE_URL) ?? DEFAULT_PREFERENCES.ollamaBaseURL,
+    ollamaModelId:
+      get<string>(KEY_OLLAMA_MODEL_ID) ?? DEFAULT_PREFERENCES.ollamaModelId,
+    openaiCompatibleBaseURL:
+      get<string>(KEY_OPENAI_COMPATIBLE_BASE_URL) ??
+      DEFAULT_PREFERENCES.openaiCompatibleBaseURL,
+    openaiCompatibleModelId:
+      get<string>(KEY_OPENAI_COMPATIBLE_MODEL_ID) ??
+      DEFAULT_PREFERENCES.openaiCompatibleModelId,
     vimMode: get<boolean>(KEY_VIM_MODE) ?? DEFAULT_PREFERENCES.vimMode,
   };
 }
@@ -166,6 +189,26 @@ export async function setLmstudioBaseURL(value: string): Promise<void> {
   await store.save();
 }
 
+export async function setOllamaBaseURL(value: string): Promise<void> {
+  await store.set(KEY_OLLAMA_BASE_URL, value);
+  await store.save();
+}
+
+export async function setOllamaModelId(value: string): Promise<void> {
+  await store.set(KEY_OLLAMA_MODEL_ID, value);
+  await store.save();
+}
+
+export async function setOpenAICompatibleBaseURL(value: string): Promise<void> {
+  await store.set(KEY_OPENAI_COMPATIBLE_BASE_URL, value);
+  await store.save();
+}
+
+export async function setOpenAICompatibleModelId(value: string): Promise<void> {
+  await store.set(KEY_OPENAI_COMPATIBLE_MODEL_ID, value);
+  await store.save();
+}
+
 export async function setVimMode(value: boolean): Promise<void> {
   await store.set(KEY_VIM_MODE, value);
   await store.save();
@@ -188,6 +231,10 @@ export function onPreferencesChange(
     [KEY_AUTOCOMPLETE_PROVIDER]: "autocompleteProvider",
     [KEY_AUTOCOMPLETE_MODEL]: "autocompleteModelId",
     [KEY_LMSTUDIO_BASE_URL]: "lmstudioBaseURL",
+    [KEY_OLLAMA_BASE_URL]: "ollamaBaseURL",
+    [KEY_OLLAMA_MODEL_ID]: "ollamaModelId",
+    [KEY_OPENAI_COMPATIBLE_BASE_URL]: "openaiCompatibleBaseURL",
+    [KEY_OPENAI_COMPATIBLE_MODEL_ID]: "openaiCompatibleModelId",
     [KEY_VIM_MODE]: "vimMode",
   };
   return store.onChange<unknown>((key, value) => {

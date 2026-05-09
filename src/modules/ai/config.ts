@@ -7,14 +7,17 @@ export type ProviderId =
   | "xai"
   | "cerebras"
   | "groq"
-  | "lmstudio";
+  | "lmstudio"
+  | "ollama"
+  | "openai-compatible";
 
 export type ProviderInfo = {
   id: ProviderId;
   label: string;
-  keyringAccount: string;
+  keyringAccount: string | null;
   keyPrefix: string | null;
   consoleUrl: string;
+  authMode: "required" | "optional" | "none";
 };
 
 export const PROVIDERS: readonly ProviderInfo[] = [
@@ -24,6 +27,7 @@ export const PROVIDERS: readonly ProviderInfo[] = [
     keyringAccount: "openai-api-key",
     keyPrefix: "sk-",
     consoleUrl: "https://platform.openai.com/api-keys",
+    authMode: "required",
   },
   {
     id: "anthropic",
@@ -31,6 +35,7 @@ export const PROVIDERS: readonly ProviderInfo[] = [
     keyringAccount: "anthropic-api-key",
     keyPrefix: "sk-ant-",
     consoleUrl: "https://console.anthropic.com/settings/keys",
+    authMode: "required",
   },
   {
     id: "google",
@@ -38,6 +43,7 @@ export const PROVIDERS: readonly ProviderInfo[] = [
     keyringAccount: "google-api-key",
     keyPrefix: null,
     consoleUrl: "https://aistudio.google.com/apikey",
+    authMode: "required",
   },
   {
     id: "xai",
@@ -45,6 +51,7 @@ export const PROVIDERS: readonly ProviderInfo[] = [
     keyringAccount: "xai-api-key",
     keyPrefix: "xai-",
     consoleUrl: "https://console.x.ai/",
+    authMode: "required",
   },
   {
     id: "cerebras",
@@ -52,6 +59,7 @@ export const PROVIDERS: readonly ProviderInfo[] = [
     keyringAccount: "cerebras-api-key",
     keyPrefix: "csk-",
     consoleUrl: "https://cloud.cerebras.ai/",
+    authMode: "required",
   },
   {
     id: "groq",
@@ -59,13 +67,31 @@ export const PROVIDERS: readonly ProviderInfo[] = [
     keyringAccount: "groq-api-key",
     keyPrefix: "gsk_",
     consoleUrl: "https://console.groq.com/keys",
+    authMode: "required",
   },
   {
     id: "lmstudio",
     label: "LM Studio",
-    keyringAccount: "",
+    keyringAccount: null,
     keyPrefix: null,
     consoleUrl: "https://lmstudio.ai/docs/basics/server",
+    authMode: "none",
+  },
+  {
+    id: "ollama",
+    label: "Ollama",
+    keyringAccount: null,
+    keyPrefix: null,
+    consoleUrl: "https://ollama.com/",
+    authMode: "none",
+  },
+  {
+    id: "openai-compatible",
+    label: "OpenAI-compatible",
+    keyringAccount: "openai-compatible-api-key",
+    keyPrefix: null,
+    consoleUrl: "https://platform.openai.com/api-keys",
+    authMode: "optional",
   },
 ] as const;
 
@@ -168,6 +194,18 @@ export const MODELS = [
     label: "LM Studio (local)",
     hint: "Custom local model",
   },
+  {
+    id: "ollama-local",
+    provider: "ollama",
+    label: "Ollama (local)",
+    hint: "Custom local model",
+  },
+  {
+    id: "openai-compatible-local",
+    provider: "openai-compatible",
+    label: "OpenAI-compatible",
+    hint: "Custom endpoint model",
+  },
 ] as const satisfies readonly ModelInfo[];
 
 export type ModelId = (typeof MODELS)[number]["id"];
@@ -197,6 +235,8 @@ export const MODEL_CONTEXT_LIMITS: Record<string, number> = {
   "gpt-oss-120b": 128_000,
   "openai/gpt-oss-20b": 128_000,
   "lmstudio-local": 32_000,
+  "ollama-local": 128_000,
+  "openai-compatible-local": 128_000,
 };
 
 export function getModelContextLimit(modelId: string | undefined): number {
@@ -205,14 +245,27 @@ export function getModelContextLimit(modelId: string | undefined): number {
 }
 
 /** Providers that do not require an API key (e.g. local servers). */
-export const KEYLESS_PROVIDERS: readonly ProviderId[] = ["lmstudio"] as const;
+export const KEYLESS_PROVIDERS: readonly ProviderId[] = [
+  "lmstudio",
+  "ollama",
+  "openai-compatible",
+] as const;
 
 export function providerNeedsKey(id: ProviderId): boolean {
   return !KEYLESS_PROVIDERS.includes(id);
 }
 
+export function providerSupportsStoredKey(id: ProviderId): boolean {
+  return getProvider(id).authMode !== "none";
+}
+
 /** Providers eligible for the editor's inline autocomplete (latency-critical). */
-export type AutocompleteProviderId = "cerebras" | "groq" | "lmstudio";
+export type AutocompleteProviderId =
+  | "cerebras"
+  | "groq"
+  | "lmstudio"
+  | "ollama"
+  | "openai-compatible";
 
 export const AUTOCOMPLETE_PROVIDERS: readonly AutocompleteProviderId[] = [
   "cerebras",
@@ -227,9 +280,16 @@ export const DEFAULT_AUTOCOMPLETE_MODEL: Record<
   cerebras: "gpt-oss-120b",
   groq: "openai/gpt-oss-20b",
   lmstudio: "qwen2.5-coder-7b-instruct",
+  ollama: "llama3.2",
+  "openai-compatible": "gpt-4o-mini",
 };
 
+export const LMSTUDIO_DEFAULT_MODEL_ID = "lmstudio-local";
+export const OLLAMA_DEFAULT_MODEL_ID = "ollama-local";
+export const OPENAI_COMPATIBLE_DEFAULT_MODEL_ID = "openai-compatible-local";
+
 export const LMSTUDIO_DEFAULT_BASE_URL = "http://localhost:1234/v1";
+export const OLLAMA_DEFAULT_BASE_URL = "http://localhost:11434/v1";
 export const MAX_AGENT_STEPS = 24;
 export const TERMINAL_BUFFER_LINES = 300;
 

@@ -11,6 +11,7 @@ import { fileIconUrl } from "@/modules/explorer/lib/iconResolver";
 import {
   Cancel01Icon,
   ComputerTerminal02Icon,
+  FileAddIcon,
   Folder01Icon,
   Folder02Icon,
   GitCompareIcon,
@@ -182,6 +183,16 @@ function TabIcon({ tab, active }: { tab: Tab; active: boolean }) {
       />
     );
   }
+  if (tab.kind === "markdown-preview") {
+    return (
+      <HugeiconsIcon
+        icon={FileAddIcon}
+        size={14}
+        strokeWidth={1.75}
+        className="shrink-0"
+      />
+    );
+  }
   if (tab.kind === "ai-diff") {
     return (
       <HugeiconsIcon
@@ -205,6 +216,7 @@ function TabIcon({ tab, active }: { tab: Tab; active: boolean }) {
 function labelFor(t: Tab): string {
   if (t.kind === "editor") return t.title;
   if (t.kind === "preview") return t.title;
+  if (t.kind === "markdown-preview") return t.title;
   if (t.kind === "ai-diff") return t.title;
   if (!t.cwd) return t.title;
   const parts = t.cwd.split("/").filter(Boolean);

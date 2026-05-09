@@ -22,6 +22,13 @@ export type PreviewTab = {
   url: string;
 };
 
+export type MarkdownPreviewTab = {
+  id: number;
+  kind: "markdown-preview";
+  title: string;
+  path: string;
+};
+
 export type AiDiffStatus = "pending" | "approved" | "rejected";
 
 export type AiDiffTab = {
@@ -38,7 +45,12 @@ export type AiDiffTab = {
   isNewFile: boolean;
 };
 
-export type Tab = TerminalTab | EditorTab | PreviewTab | AiDiffTab;
+export type Tab =
+  | TerminalTab
+  | EditorTab
+  | PreviewTab
+  | MarkdownPreviewTab
+  | AiDiffTab;
 
 export type TabPatch = Partial<{
   title: string;
@@ -60,6 +72,11 @@ function titleFromUrl(url: string): string {
   } catch {
     return url || "preview";
   }
+}
+
+function markdownTitleFromPath(path: string): string {
+  const parts = path.split("/").filter(Boolean);
+  return parts.length ? parts[parts.length - 1] : path;
 }
 
 export function useTabs(initial?: Partial<TerminalTab>) {
@@ -172,6 +189,32 @@ export function useTabs(initial?: Partial<TerminalTab>) {
     return id;
   }, []);
 
+  const newMarkdownPreviewTab = useCallback((path: string) => {
+    let targetId: number | null = null;
+    setTabs((curr) => {
+      const existing = curr.find(
+        (t) => t.kind === "markdown-preview" && t.path === path,
+      );
+      if (existing) {
+        targetId = existing.id;
+        return curr;
+      }
+      const id = nextIdRef.current++;
+      targetId = id;
+      return [
+        ...curr,
+        {
+          id,
+          kind: "markdown-preview",
+          title: markdownTitleFromPath(path),
+          path,
+        },
+      ];
+    });
+    if (targetId !== null) setActiveId(targetId);
+    return targetId as number | null;
+  }, []);
+
   const closeTab = useCallback((id: number) => {
     setTabs((curr) => {
       if (curr.length <= 1) return curr;
@@ -205,6 +248,16 @@ export function useTabs(initial?: Partial<TerminalTab>) {
             }),
           };
         }
+        if (x.kind === "markdown-preview") {
+          return {
+            ...x,
+            ...(patch.title !== undefined && { title: patch.title }),
+            ...(patch.path !== undefined && {
+              path: patch.path,
+              title: patch.title ?? markdownTitleFromPath(patch.path),
+            }),
+          };
+        }
         return {
           ...x,
           ...(patch.title !== undefined && { title: patch.title }),
@@ -230,6 +283,7 @@ export function useTabs(initial?: Partial<TerminalTab>) {
     newTab,
     openFileTab,
     newPreviewTab,
+    newMarkdownPreviewTab,
     openAiDiffTab,
     setAiDiffStatus,
     closeTab,

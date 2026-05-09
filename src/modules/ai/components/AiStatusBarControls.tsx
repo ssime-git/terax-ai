@@ -20,6 +20,7 @@ import {
   FlashIcon,
   GoogleGeminiIcon,
   Grok02Icon,
+  Globe02Icon,
   Message01Icon,
   Mic01Icon,
   StopCircleIcon,
@@ -31,6 +32,7 @@ import {
   getModel,
   MODELS,
   PROVIDERS,
+  providerNeedsKey,
   type ModelId,
   type ProviderId,
 } from "../config";
@@ -45,6 +47,8 @@ const PROVIDER_ICON = {
   cerebras: CpuIcon,
   groq: FlashIcon,
   lmstudio: ComputerIcon,
+  ollama: CpuIcon,
+  "openai-compatible": Globe02Icon,
 } as const satisfies Record<ProviderId, typeof ChatGptIcon>;
 
 export function AiOpenButton({ onOpen }: { onOpen: () => void }) {
@@ -196,10 +200,12 @@ function ModelDropdown() {
   const apiKeys = useChatStore((s) => s.apiKeys);
   const setSelected = useChatStore((s) => s.setSelectedModelId);
   const current = getModel(selected);
-  const currentProviderHasKey = !!apiKeys[current.provider];
+  const currentProviderHasKey = providerNeedsKey(current.provider)
+    ? !!apiKeys[current.provider]
+    : true;
 
   const onPick = (id: ModelId, providerId: ProviderId) => {
-    if (!apiKeys[providerId]) {
+    if (providerNeedsKey(providerId) && !apiKeys[providerId]) {
       void openSettingsWindow("models");
       return;
     }
@@ -242,7 +248,7 @@ function ModelDropdown() {
       <DropdownMenuContent align="end" className="min-w-[240px]">
         {PROVIDERS.map((p) => {
           const models = MODELS.filter((m) => m.provider === p.id);
-          const hasKey = !!apiKeys[p.id];
+          const hasKey = providerNeedsKey(p.id) ? !!apiKeys[p.id] : true;
           return (
             <div key={p.id} className="px-1 pt-1.5 first:pt-1">
               <div className="mb-0.5 flex items-center gap-1.5 px-2 text-[9.5px] font-medium tracking-wide text-muted-foreground uppercase">
@@ -252,7 +258,7 @@ function ModelDropdown() {
                   strokeWidth={1.25}
                 />
                 <span>{p.label}</span>
-                {!hasKey ? (
+                {providerNeedsKey(p.id) && !hasKey ? (
                   <button
                     type="button"
                     onClick={(e) => {

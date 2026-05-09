@@ -1,3 +1,4 @@
+import { Button } from "@/components/ui/button";
 import {
   findNext,
   findPrevious,
@@ -30,6 +31,9 @@ import { useDocument } from "./lib/useDocument";
 import { inlineCompletion } from "./lib/autocomplete/inlineExtension";
 import { getKey } from "@/modules/ai/lib/keyring";
 import { onKeysChanged } from "@/modules/settings/store";
+import { isMarkdownPath } from "./lib/markdown";
+import { HugeiconsIcon } from "@hugeicons/react";
+import { ViewIcon } from "@hugeicons/core-free-icons";
 
 export type EditorPaneHandle = {
   setQuery: (q: string) => void;
@@ -47,6 +51,7 @@ type Props = {
   onDirtyChange?: (dirty: boolean) => void;
   onSaved?: () => void;
   onClose?: () => void;
+  onOpenMarkdownPreview?: () => void;
 };
 
 function formatBytes(n: number): string {
@@ -56,7 +61,10 @@ function formatBytes(n: number): string {
 }
 
 export const EditorPane = forwardRef<EditorPaneHandle, Props>(
-  function EditorPane({ path, onDirtyChange, onSaved, onClose }, ref) {
+  function EditorPane(
+    { path, onDirtyChange, onSaved, onClose, onOpenMarkdownPreview },
+    ref,
+  ) {
     const { doc, onChange, save, reload } = useDocument({ path, onDirtyChange });
     const reloadRef = useRef(reload);
     reloadRef.current = reload;
@@ -104,6 +112,8 @@ export const EditorPane = forwardRef<EditorPaneHandle, Props>(
     onSavedRef.current = onSaved;
     const onCloseRef = useRef(onClose);
     onCloseRef.current = onClose;
+    const onOpenMarkdownPreviewRef = useRef(onOpenMarkdownPreview);
+    onOpenMarkdownPreviewRef.current = onOpenMarkdownPreview;
 
     const pathRef = useRef(path);
     pathRef.current = path;
@@ -135,6 +145,8 @@ export const EditorPane = forwardRef<EditorPaneHandle, Props>(
               modelId: s.autocompleteModelId,
               apiKey: apiKeyRef.current,
               lmstudioBaseURL: s.lmstudioBaseURL,
+              ollamaBaseURL: s.ollamaBaseURL,
+              openaiCompatibleBaseURL: s.openaiCompatibleBaseURL,
             };
           },
           getPath: () => pathRef.current,
@@ -262,6 +274,23 @@ export const EditorPane = forwardRef<EditorPaneHandle, Props>(
 
     return (
       <div className="flex h-full min-h-0 flex-col">
+        <div className="flex h-9 shrink-0 items-center justify-between gap-2 border-b border-border/60 px-3">
+          <div className="min-w-0 flex-1 truncate font-mono text-[11px] text-muted-foreground">
+            {path}
+          </div>
+          {isMarkdownPath(path) && onOpenMarkdownPreviewRef.current ? (
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => onOpenMarkdownPreviewRef.current?.()}
+              className="h-7 gap-1.5 px-2.5 text-[11px]"
+            >
+              <HugeiconsIcon icon={ViewIcon} size={12} strokeWidth={1.75} />
+              Preview
+            </Button>
+          ) : null}
+        </div>
         <CodeMirror
           ref={cmRef}
           value={doc.content}
