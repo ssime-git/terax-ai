@@ -1,6 +1,7 @@
 import { Experimental_Agent as Agent, stepCountIs } from "ai";
-import { DEFAULT_MODEL_ID, getModel, type ModelId } from "../config";
+import { DEFAULT_MODEL_ID, type ModelId } from "../config";
 import { buildLanguageModel } from "../lib/agent";
+import { getEditableModelOverrides, resolveEditableModel } from "../lib/modelCatalog";
 import type { ProviderKeys } from "../lib/keyring";
 import type { ToolContext } from "../tools/context";
 import { buildFsTools } from "../tools/fs";
@@ -36,6 +37,7 @@ export async function runSubagent({
   const def = SUBAGENTS[type];
   if (!def) throw new Error(`unknown subagent type: ${type}`);
   const prefs = usePreferencesStore.getState();
+  const editableModelOverrides = getEditableModelOverrides(prefs);
 
   // Subagents only get read-only tools. Build directly from the read-only
   // builders to avoid pulling in mutating/recursive tools.
@@ -48,7 +50,8 @@ export async function runSubagent({
     if (t in readOnly) filtered[t] = readOnly[t];
   }
 
-  const model = await buildLanguageModel(getModel(modelId).provider, keys, getModel(modelId).id, {
+  const resolved = resolveEditableModel(modelId, editableModelOverrides);
+  const model = await buildLanguageModel(resolved.provider, keys, resolved.modelRef, {
     lmstudioBaseURL: lmstudioBaseURL ?? prefs.lmstudioBaseURL,
     ollamaBaseURL: prefs.ollamaBaseURL,
     openaiCompatibleBaseURL: prefs.openaiCompatibleBaseURL,

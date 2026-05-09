@@ -29,8 +29,13 @@ import {
 import { HugeiconsIcon } from "@hugeicons/react";
 import { motion } from "motion/react";
 import { useEffect, useMemo } from "react";
-import { getModel, getModelContextLimit } from "../config";
+import { getModelContextLimit } from "../config";
+import {
+  getEditableModelOverrides,
+  resolveEditableModel,
+} from "../lib/modelCatalog";
 import type { SessionMeta } from "../lib/sessions";
+import { usePreferencesStore } from "@/modules/settings/preferences";
 import { useAgentsStore } from "../store/agentsStore";
 import { getOrCreateChat, useChatStore } from "../store/chatStore";
 import { usePlanStore } from "../store/planStore";
@@ -283,15 +288,39 @@ function formatTokens(n: number): string {
 
 function ContextIndicator({ messages }: { messages: UIMessage[] }) {
   const modelId = useChatStore((s) => s.selectedModelId);
+  const cerebrasModelLabel = usePreferencesStore((s) => s.cerebrasModelLabel);
+  const cerebrasModelRef = usePreferencesStore((s) => s.cerebrasModelRef);
+  const groqModelLabel = usePreferencesStore((s) => s.groqModelLabel);
+  const groqModelRef = usePreferencesStore((s) => s.groqModelRef);
+  const lmstudioModelLabel = usePreferencesStore((s) => s.lmstudioModelLabel);
+  const lmstudioModelRef = usePreferencesStore((s) => s.lmstudioModelRef);
   const used = useMemo(() => estimateTokens(messages), [messages]);
   const max = getModelContextLimit(modelId);
   const modelLabel = useMemo(() => {
     try {
-      return getModel(modelId).label;
+      return resolveEditableModel(
+        modelId,
+        getEditableModelOverrides({
+          cerebrasModelLabel,
+          cerebrasModelRef,
+          groqModelLabel,
+          groqModelRef,
+          lmstudioModelLabel,
+          lmstudioModelRef,
+        }),
+      ).label;
     } catch {
       return modelId;
     }
-  }, [modelId]);
+  }, [
+    cerebrasModelLabel,
+    cerebrasModelRef,
+    groqModelLabel,
+    groqModelRef,
+    lmstudioModelLabel,
+    lmstudioModelRef,
+    modelId,
+  ]);
 
   return (
     <Context usedTokens={used} maxTokens={max} modelId={modelId}>
