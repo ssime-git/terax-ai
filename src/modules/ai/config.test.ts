@@ -1,5 +1,10 @@
 import { describe, expect, it } from "vitest";
-import { getProvider, providerNeedsKey } from "./config";
+import {
+  AUTOCOMPLETE_PROVIDERS,
+  DEFAULT_AUTOCOMPLETE_MODEL,
+  getProvider,
+  providerNeedsKey,
+} from "./config";
 
 describe("AI provider registry", () => {
   it("exposes keyless Ollama and OpenAI-compatible providers", () => {
@@ -11,5 +16,9 @@ describe("AI provider registry", () => {
     );
     expect(providerNeedsKey("openai-compatible")).toBe(false);
   });
-});
 
+  it("includes Google in autocomplete with a Gemini default", () => {
+    expect(AUTOCOMPLETE_PROVIDERS).toContain("google");
+    expect(DEFAULT_AUTOCOMPLETE_MODEL.google).toBe("gemini-3-flash");
+  });
+});

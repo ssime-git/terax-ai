@@ -263,6 +263,7 @@ export function providerSupportsStoredKey(id: ProviderId): boolean {
 export type AutocompleteProviderId =
   | "cerebras"
   | "groq"
+  | "google"
   | "lmstudio"
   | "ollama"
   | "openai-compatible";
@@ -270,6 +271,7 @@ export type AutocompleteProviderId =
 export const AUTOCOMPLETE_PROVIDERS: readonly AutocompleteProviderId[] = [
   "cerebras",
   "groq",
+  "google",
   "lmstudio",
 ] as const;
 
@@ -279,6 +281,7 @@ export const DEFAULT_AUTOCOMPLETE_MODEL: Record<
 > = {
   cerebras: "gpt-oss-120b",
   groq: "openai/gpt-oss-20b",
+  google: "gemini-3-flash",
   lmstudio: "qwen2.5-coder-7b-instruct",
   ollama: "llama3.2",
   "openai-compatible": "gpt-4o-mini",
