@@ -61,7 +61,7 @@ describe("autocomplete provider", () => {
     expect(mocks.buildLanguageModel).toHaveBeenCalledWith(
       "google",
       expect.objectContaining({ google: "google-key" }),
-      "gemini-3-flash",
+      "gemini-3-flash-preview",
       expect.objectContaining({
         lmstudioBaseURL: "http://lm.test/v1",
         ollamaBaseURL: "http://ollama.test/v1",

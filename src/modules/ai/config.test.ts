@@ -19,6 +19,8 @@ describe("AI provider registry", () => {
 
   it("includes Google in autocomplete with a Gemini default", () => {
     expect(AUTOCOMPLETE_PROVIDERS).toContain("google");
-    expect(DEFAULT_AUTOCOMPLETE_MODEL.google).toBe("gemini-3-flash");
+    expect(DEFAULT_AUTOCOMPLETE_MODEL.google).toBe(
+      "gemini-3-flash-preview",
+    );
   });
 });

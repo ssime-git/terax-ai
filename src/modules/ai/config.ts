@@ -149,15 +149,15 @@ export const MODELS = [
   },
   // Google
   {
-    id: "gemini-3.1-pro",
+    id: "gemini-3-pro-preview",
     provider: "google",
-    label: "Gemini 3.1 Pro",
+    label: "Gemini 3 Pro Preview",
     hint: "Best",
   },
   {
-    id: "gemini-3-flash",
+    id: "gemini-3-flash-preview",
     provider: "google",
-    label: "Gemini 3 Flash",
+    label: "Gemini 3 Flash Preview",
     hint: "Fast",
   },
   // xAI
@@ -228,8 +228,8 @@ export const MODEL_CONTEXT_LIMITS: Record<string, number> = {
   "claude-haiku-4-5": 200_000,
   "claude-sonnet-4-6": 200_000,
   "claude-opus-4-7": 200_000,
-  "gemini-3.1-pro": 1_000_000,
-  "gemini-3-flash": 1_000_000,
+  "gemini-3-pro-preview": 1_048_576,
+  "gemini-3-flash-preview": 1_048_576,
   "grok-4.20-reasoning": 2_000_000,
   "grok-4.20-non-reasoning": 2_000_000,
   "gpt-oss-120b": 128_000,
@@ -281,7 +281,7 @@ export const DEFAULT_AUTOCOMPLETE_MODEL: Record<
 > = {
   cerebras: "gpt-oss-120b",
   groq: "openai/gpt-oss-20b",
-  google: "gemini-3-flash",
+  google: "gemini-3-flash-preview",
   lmstudio: "qwen2.5-coder-7b-instruct",
   ollama: "llama3.2",
   "openai-compatible": "gpt-4o-mini",
