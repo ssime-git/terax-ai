@@ -1,11 +1,12 @@
 SHELL := /bin/sh
 
-.PHONY: help dev tauri-dev build preview test test-run typecheck
+.PHONY: help install dev tauri-dev build preview test test-run typecheck
 
 help:
 	@printf '%s\n' \
 		'Available targets:' \
-		'  make dev         - Start Vite dev server' \
+		'  make install      - Install/sync dependencies (pnpm install)' \
+		'  make dev          - Start Vite dev server' \
 		'  make tauri-dev    - Start the desktop app in Tauri dev mode' \
 		'  make build        - Typecheck and build the frontend' \
 		'  make preview      - Preview the Vite build' \
@@ -13,14 +14,19 @@ help:
 		'  make test-run     - Run Vitest once' \
 		'  make typecheck    - Run TypeScript typecheck'
 
-dev:
+node_modules/.pnpm-sync-marker: pnpm-lock.yaml
+	pnpm install
+	@touch node_modules/.pnpm-sync-marker
+
+install: node_modules/.pnpm-sync-marker
+
+dev: install
 	pnpm dev
 
-tauri-dev:
+tauri-dev: install
 	pnpm tauri dev
 
-build:
-	pnpm build
+build: install
 
 preview:
 	pnpm preview
