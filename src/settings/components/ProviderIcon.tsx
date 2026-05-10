@@ -8,6 +8,7 @@ import {
   Grok02Icon,
   CpuIcon,
   Globe02Icon,
+  DeepseekIcon,
 } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
 
@@ -18,6 +19,7 @@ const ICON_BY_PROVIDER = {
   xai: Grok02Icon,
   cerebras: CpuIcon,
   groq: FlashIcon,
+  deepseek: DeepseekIcon,
   lmstudio: ComputerIcon,
   ollama: CpuIcon,
   "openai-compatible": Globe02Icon,

@@ -45,6 +45,7 @@ import {
   setOpenAICompatibleBaseURL,
   setOpenAICompatibleModelId,
 } from "@/modules/settings/store";
+import { invoke } from "@tauri-apps/api/core";
 import { ArrowDown01Icon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { useEffect, useState } from "react";
@@ -333,7 +334,6 @@ function AutocompleteBlock({ keys }: { keys: KeysMap }) {
 
   const providerInfo = getProvider(provider);
   const hasKey = providerNeedsKey(provider) ? !!keys[provider] : true;
-  const currentToken = keys[provider];
   const currentBaseURL =
     provider === "lmstudio"
       ? lmstudioUrlDraft
@@ -364,11 +364,8 @@ function AutocompleteBlock({ keys }: { keys: KeysMap }) {
     setTestStatus("testing");
     try {
       const url = currentBaseURL.replace(/\/$/, "") + "/models";
-      const headers: Record<string, string> = {};
-      const token = currentToken?.trim();
-      if (token) headers.Authorization = `Bearer ${token}`;
-      const res = await fetch(url, { method: "GET", headers });
-      setTestStatus(res.ok ? "ok" : "fail");
+      const status = await invoke<number>("http_ping", { url });
+      setTestStatus(status >= 200 && status < 400 ? "ok" : "fail");
     } catch {
       setTestStatus("fail");
     }

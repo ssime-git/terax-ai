@@ -17,6 +17,7 @@ export const EMPTY_PROVIDER_KEYS: ProviderKeys = {
   xai: null,
   cerebras: null,
   groq: null,
+  deepseek: null,
   lmstudio: null,
   ollama: null,
   "openai-compatible": null,
