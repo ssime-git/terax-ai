@@ -5,6 +5,7 @@ import { createTeraxAgent } from "./agent";
 import type { ProviderKeys } from "./keyring";
 import { native } from "./native";
 import type { ToolContext } from "../tools/tools";
+import { getEditableModelOverrides } from "./modelCatalog";
 import { usePreferencesStore } from "@/modules/settings/preferences";
 
 const TERAX_MD_MAX_BYTES = 32 * 1024;
@@ -64,6 +65,7 @@ export function createContextAwareTransport(deps: Deps) {
     }) {
       const live = deps.getLive();
       const prefs = usePreferencesStore.getState();
+      const editableModelOverrides = getEditableModelOverrides(prefs);
       const projectMemory = await readTeraxMd(live.workspaceRoot);
       const agent = await createTeraxAgent({
         keys: deps.getKeys(),
@@ -77,6 +79,7 @@ export function createContextAwareTransport(deps: Deps) {
         openaiCompatibleBaseURL: prefs.openaiCompatibleBaseURL,
         ollamaModelId: prefs.ollamaModelId,
         openaiCompatibleModelId: prefs.openaiCompatibleModelId,
+        editableModelOverrides,
         planMode: deps.getPlanMode?.(),
         projectMemory,
       });
@@ -90,6 +93,7 @@ export function createContextAwareTransport(deps: Deps) {
     async reconnectToStream(options: unknown) {
       const live = deps.getLive();
       const prefs = usePreferencesStore.getState();
+      const editableModelOverrides = getEditableModelOverrides(prefs);
       const projectMemory = await readTeraxMd(live.workspaceRoot);
       const agent = await createTeraxAgent({
         keys: deps.getKeys(),
@@ -103,6 +107,7 @@ export function createContextAwareTransport(deps: Deps) {
         openaiCompatibleBaseURL: prefs.openaiCompatibleBaseURL,
         ollamaModelId: prefs.ollamaModelId,
         openaiCompatibleModelId: prefs.openaiCompatibleModelId,
+        editableModelOverrides,
         planMode: deps.getPlanMode?.(),
         projectMemory,
       });

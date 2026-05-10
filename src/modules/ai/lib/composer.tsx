@@ -7,6 +7,10 @@ import {
   useState,
 } from "react";
 import { useWhisperRecording } from "../hooks/useWhisperRecording";
+import {
+  serializeMentions,
+  type WorkspaceMention,
+} from "../lib/mentions";
 import { expandSnippetTokens, type Snippet } from "../lib/snippets";
 import { tryRunSlashCommand, type SlashCommandMeta } from "./slashCommands";
 import { getOrCreateChat, useChatStore } from "../store/chatStore";
@@ -46,6 +50,9 @@ type ComposerCtx = {
   pickedSnippets: Snippet[];
   addSnippet: (s: Snippet) => void;
   removeSnippet: (id: string) => void;
+  pickedMentions: WorkspaceMention[];
+  addMention: (m: WorkspaceMention) => void;
+  removeMention: (id: string) => void;
   pickedCommands: SlashCommandMeta[];
   addCommand: (c: SlashCommandMeta) => void;
   removeCommand: (name: string) => void;
@@ -77,6 +84,7 @@ export function AiComposerProvider({ children }: ProviderProps) {
   const [value, setValue] = useState("");
   const [files, setFiles] = useState<FileAttachment[]>([]);
   const [pickedSnippets, setPickedSnippets] = useState<Snippet[]>([]);
+  const [pickedMentions, setPickedMentions] = useState<WorkspaceMention[]>([]);
   const [pickedCommands, setPickedCommands] = useState<SlashCommandMeta[]>([]);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
@@ -162,6 +170,13 @@ export function AiComposerProvider({ children }: ProviderProps) {
   const removeSnippet = (id: string) =>
     setPickedSnippets((prev) => prev.filter((s) => s.id !== id));
 
+  const addMention = (m: WorkspaceMention) =>
+    setPickedMentions((prev) =>
+      prev.some((p) => p.id === m.id) ? prev : [...prev, m],
+    );
+  const removeMention = (id: string) =>
+    setPickedMentions((prev) => prev.filter((m) => m.id !== id));
+
   const addCommand = (cmd: SlashCommandMeta) =>
     setPickedCommands((prev) =>
       prev.some((p) => p.name === cmd.name) ? prev : [...prev, cmd],
@@ -209,6 +224,7 @@ export function AiComposerProvider({ children }: ProviderProps) {
       !trimmed &&
       files.length === 0 &&
       pickedSnippets.length === 0 &&
+      pickedMentions.length === 0 &&
       pickedCommands.length === 0
     )
       return;
@@ -249,6 +265,8 @@ export function AiComposerProvider({ children }: ProviderProps) {
         (f) =>
           `<selection source="${f.source ?? "terminal"}">\n${f.text ?? ""}\n</selection>`,
       );
+    const workspaceRoot = useChatStore.getState().live.getWorkspaceRoot() ?? "";
+    const mentionBlocks = serializeMentions(pickedMentions, workspaceRoot);
     const { body: bodyAfterTokens, blocks: snippetBlocks } = expandSnippetTokens(
       effectiveText,
       useSnippetsStore.getState().snippets,
@@ -273,6 +291,7 @@ export function AiComposerProvider({ children }: ProviderProps) {
       allSnippetBlocks.join("\n\n"),
       selectionBlocks.join("\n\n"),
       fileBlocks.join("\n\n"),
+      mentionBlocks,
       bodyAfterTokens,
     ]
       .filter(Boolean)
@@ -298,6 +317,7 @@ export function AiComposerProvider({ children }: ProviderProps) {
     setValue("");
     setFiles([]);
     setPickedSnippets([]);
+    setPickedMentions([]);
     setPickedCommands([]);
   };
 
@@ -311,6 +331,7 @@ export function AiComposerProvider({ children }: ProviderProps) {
     (value.trim().length > 0 ||
       files.length > 0 ||
       pickedSnippets.length > 0 ||
+      pickedMentions.length > 0 ||
       pickedCommands.length > 0);
 
   const ctx: ComposerCtx = {
@@ -324,6 +345,9 @@ export function AiComposerProvider({ children }: ProviderProps) {
     pickedSnippets,
     addSnippet,
     removeSnippet,
+    pickedMentions,
+    addMention,
+    removeMention,
     pickedCommands,
     addCommand,
     removeCommand,

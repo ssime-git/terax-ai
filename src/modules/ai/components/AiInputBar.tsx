@@ -5,7 +5,9 @@ import { cn } from "@/lib/utils";
 import {
   Cancel01Icon,
   CodeIcon,
+  File02Icon,
   HashtagIcon,
+  Folder01Icon,
   Key01Icon,
   TerminalIcon,
 } from "@hugeicons/core-free-icons";
@@ -13,8 +15,14 @@ import { HugeiconsIcon } from "@hugeicons/react";
 import { AnimatePresence, motion } from "motion/react";
 import { useEffect, useMemo, useState } from "react";
 import { useComposer, type FileAttachment } from "../lib/composer";
+import {
+  detectMentionTrigger,
+  searchWorkspaceMentions,
+  type WorkspaceMention,
+} from "../lib/mentions";
 import { SLASH_COMMANDS } from "../lib/slashCommands";
 import type { Snippet } from "../lib/snippets";
+import { useChatStore } from "../store/chatStore";
 import { useSnippetsStore } from "../store/snippetsStore";
 import { AgentSwitcher } from "./AgentSwitcher";
 import { SnippetPickerContent, type PickerItem } from "./SnippetPicker";
@@ -47,8 +55,16 @@ function detectSnippetTrigger(
 export function AiInputBar() {
   const c = useComposer();
   const snippets = useSnippetsStore((s) => s.snippets);
+  const getWorkspaceRoot = useChatStore((s) => s.live.getWorkspaceRoot);
 
   const [trigger, setTrigger] = useState<SnippetTrigger | null>(null);
+  const [mentionTrigger, setMentionTrigger] = useState<{
+    start: number;
+    end: number;
+    query: string;
+  } | null>(null);
+  const [mentionItems, setMentionItems] = useState<WorkspaceMention[]>([]);
+  const [mentionLoading, setMentionLoading] = useState(false);
   const [activeIndex, setActiveIndex] = useState(0);
 
   useEffect(() => {
@@ -59,14 +75,51 @@ export function AiInputBar() {
     const el = c.textareaRef.current;
     if (!el) {
       setTrigger(null);
+      setMentionTrigger(null);
       return;
     }
-    setTrigger(detectSnippetTrigger(c.value, el.selectionStart ?? 0));
+    const caret = el.selectionStart ?? 0;
+    const mention = detectMentionTrigger(c.value, caret);
+    setMentionTrigger(mention);
+    setTrigger(mention ? null : detectSnippetTrigger(c.value, caret));
   };
 
   useEffect(updateTrigger, [c.value, c.textareaRef]);
 
+  useEffect(() => {
+    if (!mentionTrigger) {
+      setMentionItems([]);
+      setMentionLoading(false);
+      return;
+    }
+    const root = getWorkspaceRoot();
+    if (!root) {
+      setMentionItems([]);
+      setMentionLoading(false);
+      return;
+    }
+    let cancelled = false;
+    setMentionLoading(true);
+    setMentionItems([]);
+    void searchWorkspaceMentions(root, mentionTrigger.query)
+      .then((items) => {
+        if (!cancelled) setMentionItems(items);
+      })
+      .catch(() => {
+        if (!cancelled) setMentionItems([]);
+      })
+      .finally(() => {
+        if (!cancelled) setMentionLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [getWorkspaceRoot, mentionTrigger]);
+
   const filteredItems = useMemo<PickerItem[]>(() => {
+    if (mentionTrigger) {
+      return mentionItems.map((mention) => ({ kind: "mention", mention }));
+    }
     if (!trigger) return [];
     const q = trigger.query;
     const cmdItems: PickerItem[] = Object.values(SLASH_COMMANDS)
@@ -84,30 +137,37 @@ export function AiInputBar() {
       )
       .map((snippet) => ({ kind: "snippet", snippet }));
     return [...cmdItems, ...snipItems];
-  }, [trigger, snippets]);
+  }, [mentionItems, mentionTrigger, snippets, trigger]);
 
   useEffect(() => {
     if (activeIndex >= filteredItems.length) setActiveIndex(0);
   }, [filteredItems.length, activeIndex]);
 
-  const pickerOpen = trigger !== null;
+  const mentionPickerOpen = mentionTrigger !== null;
+  const anyPickerOpen = trigger !== null || mentionPickerOpen;
 
   const onPickItem = (item: PickerItem) => {
-    if (!trigger) return;
-    const before = c.value.slice(0, trigger.start);
-    const afterRaw = c.value.slice(trigger.end);
+    const active = mentionTrigger ?? trigger;
+    if (!active) return;
+    const before = c.value.slice(0, active.start);
+    const afterRaw = c.value.slice(active.end);
     let insert = "";
     if (item.kind === "snippet") {
       const needsSpace = afterRaw.length === 0 || !/^\s/.test(afterRaw);
       insert = `#${item.snippet.handle}${needsSpace ? " " : ""}`;
       c.addSnippet(item.snippet);
+    } else if (item.kind === "mention") {
+      c.addMention(item.mention);
     } else {
       c.addCommand(item.command);
     }
     const after =
-      item.kind === "command" ? afterRaw.replace(/^\s+/, "") : afterRaw;
+      item.kind === "mention" || item.kind === "command"
+        ? afterRaw.replace(/^\s+/, "")
+        : afterRaw;
     c.setValue(`${before}${insert}${after}`);
     setTrigger(null);
+    setMentionTrigger(null);
     setActiveIndex(0);
     requestAnimationFrame(() => {
       const el = c.textareaRef.current;
@@ -148,11 +208,13 @@ export function AiInputBar() {
             const re = new RegExp(`(^|\\s)#${snip.handle}\\b ?`);
             c.setValue((v) => v.replace(re, (_m, lead: string) => lead));
           }}
+          mentions={c.pickedMentions}
+          onRemoveMention={c.removeMention}
           commands={c.pickedCommands}
           onRemoveCommand={(name) => c.removeCommand(name)}
         />
 
-        <Popover open={pickerOpen}>
+        <Popover open={anyPickerOpen}>
           <PopoverAnchor asChild>
             <div className="flex items-start gap-2">
               <textarea
@@ -163,7 +225,7 @@ export function AiInputBar() {
                 onClick={updateTrigger}
                 onSelect={updateTrigger}
                 onKeyDown={(e) => {
-                  if (pickerOpen) {
+                  if (anyPickerOpen) {
                     if (e.key === "ArrowDown") {
                       e.preventDefault();
                       setActiveIndex((i) =>
@@ -186,6 +248,7 @@ export function AiInputBar() {
                     if (e.key === "Escape") {
                       e.preventDefault();
                       setTrigger(null);
+                      setMentionTrigger(null);
                       return;
                     }
                   }
@@ -194,7 +257,7 @@ export function AiInputBar() {
                     c.submit();
                   }
                 }}
-                placeholder="Ask Terax anything   -   # for snippets and commands"
+                placeholder="Ask Terax anything   -   # snippets, @ workspace refs"
                 rows={1}
                 disabled={c.isBusy}
                 className={cn(
@@ -210,6 +273,13 @@ export function AiInputBar() {
             activeIndex={activeIndex}
             onPick={onPickItem}
             onHover={setActiveIndex}
+            emptyMessage={
+              mentionPickerOpen
+                ? mentionLoading
+                  ? "Searching workspace…"
+                  : "No workspace matches."
+                : "No matches. Add snippets in Settings → Agents."
+            }
           />
         </Popover>
 
@@ -242,6 +312,8 @@ function ChipsRow({
   onRemoveFile,
   snippets,
   onRemoveSnippet,
+  mentions,
+  onRemoveMention,
   commands,
   onRemoveCommand,
 }: {
@@ -249,10 +321,17 @@ function ChipsRow({
   onRemoveFile: (id: string) => void;
   snippets: Snippet[];
   onRemoveSnippet: (id: string) => void;
+  mentions: WorkspaceMention[];
+  onRemoveMention: (id: string) => void;
   commands: { name: string; label: string; icon: typeof HashtagIcon }[];
   onRemoveCommand: (name: string) => void;
 }) {
-  if (files.length === 0 && snippets.length === 0 && commands.length === 0)
+  if (
+    files.length === 0 &&
+    snippets.length === 0 &&
+    mentions.length === 0 &&
+    commands.length === 0
+  )
     return null;
   return (
     <div className="flex flex-wrap gap-1">
@@ -308,6 +387,34 @@ function ChipsRow({
               onClick={() => onRemoveSnippet(s.id)}
               className="ml-0.5 opacity-0 transition-opacity group-hover:opacity-100"
               aria-label="Remove snippet"
+            >
+              <HugeiconsIcon icon={Cancel01Icon} size={10} strokeWidth={2} />
+            </button>
+          </motion.div>
+        ))}
+        {mentions.map((m) => (
+          <motion.div
+            key={`mention-${m.id}`}
+            layout
+            initial={{ opacity: 0, scale: 0.92 }}
+            animate={{ opacity: 1, scale: 1 }}
+            exit={{ opacity: 0, scale: 0.92 }}
+            transition={{ duration: 0.12 }}
+            className="group flex items-center gap-1 rounded-md border border-border/60 bg-card px-1.5 py-0.5 text-[11px]"
+            title={m.rel}
+          >
+            <HugeiconsIcon
+              icon={m.isDir ? Folder01Icon : File02Icon}
+              size={11}
+              strokeWidth={1.75}
+              className="text-muted-foreground"
+            />
+            <span className="font-medium">{m.rel}</span>
+            <button
+              type="button"
+              onClick={() => onRemoveMention(m.id)}
+              className="ml-0.5 text-muted-foreground opacity-0 transition-opacity group-hover:opacity-100"
+              aria-label="Remove mention"
             >
               <HugeiconsIcon icon={Cancel01Icon} size={10} strokeWidth={2} />
             </button>

@@ -1,18 +1,25 @@
 import { PopoverContent } from "@/components/ui/popover";
 import { cn } from "@/lib/utils";
+import {
+  File02Icon,
+  Folder01Icon,
+} from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
+import type { WorkspaceMention } from "../lib/mentions";
 import type { SlashCommandMeta } from "../lib/slashCommands";
 import type { Snippet } from "../lib/snippets";
 
 export type PickerItem =
   | { kind: "snippet"; snippet: Snippet }
-  | { kind: "command"; command: SlashCommandMeta };
+  | { kind: "command"; command: SlashCommandMeta }
+  | { kind: "mention"; mention: WorkspaceMention };
 
 type Props = {
   items: readonly PickerItem[];
   activeIndex: number;
   onPick: (item: PickerItem) => void;
   onHover: (index: number) => void;
+  emptyMessage?: string;
 };
 
 export function SnippetPickerContent({
@@ -20,9 +27,11 @@ export function SnippetPickerContent({
   activeIndex,
   onPick,
   onHover,
+  emptyMessage = "No matches. Add snippets in Settings → Agents.",
 }: Props) {
   const commands = items.filter((it) => it.kind === "command");
   const snippets = items.filter((it) => it.kind === "snippet");
+  const mentions = items.filter((it) => it.kind === "mention");
   let cursor = -1;
 
   return (
@@ -37,7 +46,7 @@ export function SnippetPickerContent({
     >
       {items.length === 0 ? (
         <div className="px-3 py-2.5 text-[11px] text-muted-foreground">
-          No matches. Add snippets in Settings → Agents.
+          {emptyMessage}
         </div>
       ) : (
         <div className="max-h-64 overflow-y-auto py-1">
@@ -117,6 +126,48 @@ export function SnippetPickerContent({
                             {s.description}
                           </span>
                         ) : null}
+                      </button>
+                    </li>
+                  );
+                })}
+              </ul>
+            </>
+          )}
+          {mentions.length > 0 && (
+            <>
+              <SectionHeader label="Workspace" />
+              <ul>
+                {mentions.map((it) => {
+                  cursor += 1;
+                  const i = cursor;
+                  if (it.kind !== "mention") return null;
+                  const m = it.mention;
+                  const Icon = m.isDir ? Folder01Icon : File02Icon;
+                  return (
+                    <li key={m.id}>
+                      <button
+                        type="button"
+                        onMouseEnter={() => onHover(i)}
+                        onClick={() => onPick(it)}
+                        className={cn(
+                          "flex w-full flex-col items-start gap-0.5 px-2 py-1.5 text-left text-[12px]",
+                          i === activeIndex
+                            ? "bg-accent"
+                            : "hover:bg-accent/60",
+                        )}
+                      >
+                        <span className="flex w-full items-center gap-1.5">
+                          <HugeiconsIcon
+                            icon={Icon}
+                            size={13}
+                            strokeWidth={1.75}
+                            className="text-muted-foreground"
+                          />
+                          <span className="font-medium">{m.name}</span>
+                        </span>
+                        <span className="line-clamp-1 text-[10.5px] text-muted-foreground">
+                          {m.rel}
+                        </span>
                       </button>
                     </li>
                   );

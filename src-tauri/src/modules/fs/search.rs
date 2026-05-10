@@ -17,18 +17,16 @@ pub struct SearchHit {
 /// Walks `root` honoring `.gitignore` / `.ignore` / hidden rules and returns
 /// entries whose path contains `query` (case-insensitive substring on the
 /// path relative to root). Returns up to `limit` hits. An empty query returns
-/// nothing — callers should short-circuit before invoking.
+/// the first matching workspace entries, which is useful for pickers that
+/// want to show an initial suggestion set.
 #[tauri::command]
 pub fn fs_search(
     root: String,
     query: String,
     limit: Option<usize>,
 ) -> Result<Vec<SearchHit>, String> {
-    let q = query.trim().to_lowercase();
-    if q.is_empty() {
-        return Ok(Vec::new());
-    }
-    let cap = limit.unwrap_or(200).min(1000);
+  let q = query.trim().to_lowercase();
+  let cap = limit.unwrap_or(200).min(1000);
     let root_path = PathBuf::from(&root);
     if !root_path.is_dir() {
         return Err(format!("not a directory: {root}"));

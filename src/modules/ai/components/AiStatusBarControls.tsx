@@ -29,15 +29,19 @@ import { HugeiconsIcon } from "@hugeicons/react";
 import { motion } from "motion/react";
 import { useRef } from "react";
 import {
-  getModel,
   MODELS,
   PROVIDERS,
   providerNeedsKey,
   type ModelId,
   type ProviderId,
 } from "../config";
+import {
+  getEditableModelOverrides,
+  resolveEditableModel,
+} from "../lib/modelCatalog";
 import { ACCEPTED_FILES, useComposer } from "../lib/composer";
 import { useChatStore } from "../store/chatStore";
+import { usePreferencesStore } from "@/modules/settings/preferences";
 
 const PROVIDER_ICON = {
   openai: ChatGptIcon,
@@ -199,7 +203,24 @@ function ModelDropdown() {
   const selected = useChatStore((s) => s.selectedModelId);
   const apiKeys = useChatStore((s) => s.apiKeys);
   const setSelected = useChatStore((s) => s.setSelectedModelId);
-  const current = getModel(selected);
+  const cerebrasModelLabel = usePreferencesStore((s) => s.cerebrasModelLabel);
+  const cerebrasModelRef = usePreferencesStore((s) => s.cerebrasModelRef);
+  const groqModelLabel = usePreferencesStore((s) => s.groqModelLabel);
+  const groqModelRef = usePreferencesStore((s) => s.groqModelRef);
+  const lmstudioModelLabel = usePreferencesStore((s) => s.lmstudioModelLabel);
+  const lmstudioModelRef = usePreferencesStore((s) => s.lmstudioModelRef);
+  const editableModelOverrides = getEditableModelOverrides({
+    cerebrasModelLabel,
+    cerebrasModelRef,
+    groqModelLabel,
+    groqModelRef,
+    lmstudioModelLabel,
+    lmstudioModelRef,
+  });
+  const current = resolveEditableModel(
+    selected,
+    editableModelOverrides,
+  );
   const currentProviderHasKey = providerNeedsKey(current.provider)
     ? !!apiKeys[current.provider]
     : true;
@@ -273,26 +294,53 @@ function ModelDropdown() {
                 ) : null}
               </div>
               {models.map((m) => (
-                <DropdownMenuItem
+                  <ModelOption
                   key={m.id}
-                  disabled={!hasKey}
-                  onSelect={() => onPick(m.id as ModelId, p.id)}
-                  className={cn(
-                    "flex flex-col items-start gap-0 text-xs",
-                    m.id === selected && "bg-accent/40",
-                  )}
-                >
-                  <span className="font-medium">{m.label}</span>
-                  <span className="text-[10px] text-muted-foreground">
-                    {m.hint}
-                  </span>
-                </DropdownMenuItem>
+                  modelId={m.id as ModelId}
+                  provider={p.id}
+                  hasKey={hasKey}
+                  selected={selected}
+                  onPick={onPick}
+                  overrides={editableModelOverrides}
+                />
               ))}
             </div>
           );
         })}
       </DropdownMenuContent>
     </DropdownMenu>
+  );
+}
+
+function ModelOption({
+  modelId,
+  provider,
+  hasKey,
+  selected,
+  onPick,
+  overrides,
+}: {
+  modelId: ModelId;
+  provider: ProviderId;
+  hasKey: boolean;
+  selected: ModelId;
+  onPick: (id: ModelId, providerId: ProviderId) => void;
+  overrides: ReturnType<typeof getEditableModelOverrides>;
+}) {
+  const model = resolveEditableModel(modelId, overrides);
+  return (
+    <DropdownMenuItem
+      disabled={!hasKey}
+      onSelect={() => onPick(modelId, provider)}
+      className={cn(
+        "flex flex-col items-start gap-0 text-xs",
+        modelId === selected && "bg-accent/40",
+      )}
+      title={model.modelRef}
+    >
+      <span className="font-medium">{model.label}</span>
+      <span className="text-[10px] text-muted-foreground">{model.modelRef}</span>
+    </DropdownMenuItem>
   );
 }
 

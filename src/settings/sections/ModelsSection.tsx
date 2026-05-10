@@ -14,13 +14,17 @@ import {
   MODELS,
   OLLAMA_DEFAULT_BASE_URL,
   PROVIDERS,
-  getModel,
   getProvider,
   providerNeedsKey,
   type AutocompleteProviderId,
   type ModelId,
   type ProviderId,
 } from "@/modules/ai/config";
+import {
+  getEditableModelOverrides,
+  resolveEditableModel,
+  SHIPPED_EDITABLE_DEFAULTS,
+} from "@/modules/ai/lib/modelCatalog";
 import { clearKey, getAllKeys, setKey } from "@/modules/ai/lib/keyring";
 import { usePreferencesStore } from "@/modules/settings/preferences";
 import {
@@ -28,8 +32,14 @@ import {
   setAutocompleteEnabled,
   setAutocompleteModelId,
   setAutocompleteProvider,
+  setCerebrasModelLabel,
+  setCerebrasModelRef,
   setDefaultModel,
+  setGroqModelLabel,
+  setGroqModelRef,
   setLmstudioBaseURL,
+  setLmstudioModelLabel,
+  setLmstudioModelRef,
   setOllamaBaseURL,
   setOllamaModelId,
   setOpenAICompatibleBaseURL,
@@ -48,6 +58,12 @@ type KeysMap = Record<ProviderId, string | null>;
 export function ModelsSection() {
   const [keys, setKeys] = useState<KeysMap | null>(null);
   const defaultModel = usePreferencesStore((s) => s.defaultModelId);
+  const cerebrasModelLabel = usePreferencesStore((s) => s.cerebrasModelLabel);
+  const cerebrasModelRef = usePreferencesStore((s) => s.cerebrasModelRef);
+  const groqModelLabel = usePreferencesStore((s) => s.groqModelLabel);
+  const groqModelRef = usePreferencesStore((s) => s.groqModelRef);
+  const lmstudioModelLabel = usePreferencesStore((s) => s.lmstudioModelLabel);
+  const lmstudioModelRef = usePreferencesStore((s) => s.lmstudioModelRef);
   const ollamaBaseURL = usePreferencesStore((s) => s.ollamaBaseURL);
   const ollamaModelId = usePreferencesStore((s) => s.ollamaModelId);
   const openaiCompatibleBaseURL = usePreferencesStore(
@@ -77,7 +93,18 @@ export function ModelsSection() {
     return <div className="text-[12px] text-muted-foreground">Loading…</div>;
   }
 
-  const defaultModelInfo = getModel(defaultModel);
+  const editableModelOverrides = getEditableModelOverrides({
+    cerebrasModelLabel,
+    cerebrasModelRef,
+    groqModelLabel,
+    groqModelRef,
+    lmstudioModelLabel,
+    lmstudioModelRef,
+  });
+  const defaultModelInfo = resolveEditableModel(
+    defaultModel,
+    editableModelOverrides,
+  );
   const configuredCount = PROVIDERS.filter(
     (p) => providerNeedsKey(p.id) && !!keys[p.id],
   ).length;
@@ -101,7 +128,7 @@ export function ModelsSection() {
                 <ProviderIcon provider={defaultModelInfo.provider} size={14} />
                 <span>{defaultModelInfo.label}</span>
                 <span className="text-muted-foreground">
-                  · {defaultModelInfo.hint}
+                  · {defaultModelInfo.defaultModelRef}
                 </span>
               </span>
               <HugeiconsIcon
@@ -138,11 +165,27 @@ export function ModelsSection() {
                         "flex items-center justify-between gap-2 text-[12px]",
                         m.id === defaultModel && "bg-accent/50",
                       )}
+                      title={
+                        resolveEditableModel(
+                          m.id as ModelId,
+                          editableModelOverrides,
+                        ).modelRef
+                      }
                     >
                       <span className="flex flex-col">
-                        <span>{m.label}</span>
+                        <span>
+                          {
+                            resolveEditableModel(
+                              m.id as ModelId,
+                              editableModelOverrides,
+                            ).label
+                          }
+                        </span>
                         <span className="text-[10px] text-muted-foreground">
-                          {m.hint}
+                          {resolveEditableModel(
+                            m.id as ModelId,
+                            editableModelOverrides,
+                          ).modelRef}
                         </span>
                       </span>
                     </DropdownMenuItem>
@@ -152,6 +195,42 @@ export function ModelsSection() {
             })}
           </DropdownMenuContent>
         </DropdownMenu>
+      </div>
+
+      <div className="flex flex-col gap-2">
+        <SectionHeader
+          title="Editable model defaults"
+          description="Override the label and real model ref used for Cerebras, Groq, and LM Studio."
+        />
+        <div className="grid grid-cols-1 gap-2 xl:grid-cols-3">
+          <EditableModelCard
+            provider={getProvider("cerebras")}
+            label={cerebrasModelLabel}
+            modelRef={cerebrasModelRef}
+            defaultLabel={SHIPPED_EDITABLE_DEFAULTS.cerebras.label}
+            defaultModelRef={SHIPPED_EDITABLE_DEFAULTS.cerebras.modelRef}
+            onSaveLabel={setCerebrasModelLabel}
+            onSaveModelRef={setCerebrasModelRef}
+          />
+          <EditableModelCard
+            provider={getProvider("groq")}
+            label={groqModelLabel}
+            modelRef={groqModelRef}
+            defaultLabel={SHIPPED_EDITABLE_DEFAULTS.groq.label}
+            defaultModelRef={SHIPPED_EDITABLE_DEFAULTS.groq.modelRef}
+            onSaveLabel={setGroqModelLabel}
+            onSaveModelRef={setGroqModelRef}
+          />
+          <EditableModelCard
+            provider={getProvider("lmstudio")}
+            label={lmstudioModelLabel}
+            modelRef={lmstudioModelRef}
+            defaultLabel={SHIPPED_EDITABLE_DEFAULTS.lmstudio.label}
+            defaultModelRef={SHIPPED_EDITABLE_DEFAULTS.lmstudio.modelRef}
+            onSaveLabel={setLmstudioModelLabel}
+            onSaveModelRef={setLmstudioModelRef}
+          />
+        </div>
       </div>
 
       <div className="flex flex-col gap-2">
@@ -420,6 +499,135 @@ function AutocompleteBlock({ keys }: { keys: KeysMap }) {
           </div>
         ) : null}
       </div>
+    </div>
+  );
+}
+
+function EditableModelCard({
+  provider,
+  label,
+  modelRef,
+  defaultLabel,
+  defaultModelRef,
+  onSaveLabel,
+  onSaveModelRef,
+}: {
+  provider: ReturnType<typeof getProvider>;
+  label: string;
+  modelRef: string;
+  defaultLabel: string;
+  defaultModelRef: string;
+  onSaveLabel: (value: string) => Promise<void>;
+  onSaveModelRef: (value: string) => Promise<void>;
+}) {
+  const [labelDraft, setLabelDraft] = useState(label);
+  const [modelRefDraft, setModelRefDraft] = useState(modelRef);
+  const [savingLabel, setSavingLabel] = useState(false);
+  const [savingModelRef, setSavingModelRef] = useState(false);
+  const [notice, setNotice] = useState<string | null>(null);
+
+  useEffect(() => setLabelDraft(label), [label]);
+  useEffect(() => setModelRefDraft(modelRef), [modelRef]);
+
+  const saveLabel = async () => {
+    const next = labelDraft.trim();
+    if (next === label.trim()) return;
+    setSavingLabel(true);
+    setNotice(null);
+    try {
+      await onSaveLabel(next);
+    } catch (e) {
+      setNotice(`Failed to save label: ${String(e)}`);
+    } finally {
+      setSavingLabel(false);
+    }
+  };
+
+  const saveModelRef = async () => {
+    const next = modelRefDraft.trim();
+    if (next === modelRef.trim()) return;
+    setSavingModelRef(true);
+    setNotice(null);
+    try {
+      await onSaveModelRef(next);
+    } catch (e) {
+      setNotice(`Failed to save model ref: ${String(e)}`);
+    } finally {
+      setSavingModelRef(false);
+    }
+  };
+
+  const resetDefaults = async () => {
+    setNotice(null);
+    setLabelDraft(defaultLabel);
+    setModelRefDraft(defaultModelRef);
+    setSavingLabel(true);
+    setSavingModelRef(true);
+    try {
+      await onSaveLabel(defaultLabel);
+      await onSaveModelRef(defaultModelRef);
+    } catch (e) {
+      setNotice(`Failed to reset: ${String(e)}`);
+    } finally {
+      setSavingLabel(false);
+      setSavingModelRef(false);
+    }
+  };
+
+  return (
+    <div className="flex flex-col gap-2 rounded-lg border border-border/60 bg-card/60 px-3 py-2.5">
+      <div className="flex items-center gap-2">
+        <ProviderIcon provider={provider.id} size={16} />
+        <span className="text-[12.5px] font-medium">{provider.label}</span>
+        <span className="ml-auto text-[10.5px] text-muted-foreground">
+          editable default
+        </span>
+      </div>
+
+      <div className="flex flex-col gap-1.5">
+        <Label>Display name</Label>
+        <Input
+          value={labelDraft}
+          onChange={(e) => setLabelDraft(e.target.value)}
+          onBlur={() => void saveLabel()}
+          placeholder={defaultLabel}
+          spellCheck={false}
+          disabled={savingLabel}
+          className="h-8 font-mono text-[11.5px]"
+        />
+      </div>
+
+      <div className="flex flex-col gap-1.5">
+        <Label>Model ref</Label>
+        <Input
+          value={modelRefDraft}
+          onChange={(e) => setModelRefDraft(e.target.value)}
+          onBlur={() => void saveModelRef()}
+          placeholder={defaultModelRef}
+          spellCheck={false}
+          disabled={savingModelRef}
+          className="h-8 font-mono text-[11.5px]"
+        />
+      </div>
+
+      <div className="flex items-center justify-between gap-2">
+        <span className="truncate text-[10.5px] text-muted-foreground">
+          Used by the main model picker and chat runtime.
+        </span>
+        <Button
+          type="button"
+          size="sm"
+          variant="ghost"
+          onClick={() => void resetDefaults()}
+          className="h-7 px-2 text-[11px]"
+        >
+          Reset
+        </Button>
+      </div>
+
+      {notice ? (
+        <div className="text-[10.5px] text-muted-foreground">{notice}</div>
+      ) : null}
     </div>
   );
 }

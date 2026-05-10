@@ -8,6 +8,7 @@ import {
   type AutocompleteProviderId,
   type ModelId,
 } from "@/modules/ai/config";
+import { SHIPPED_EDITABLE_DEFAULTS } from "@/modules/ai/lib/modelCatalog";
 
 export type ThemePref = "system" | "light" | "dark";
 
@@ -48,10 +49,16 @@ export type Preferences = {
   autocompleteProvider: AutocompleteProviderId;
   autocompleteModelId: string;
   lmstudioBaseURL: string;
+  lmstudioModelLabel: string;
+  lmstudioModelRef: string;
   ollamaBaseURL: string;
   ollamaModelId: string;
   openaiCompatibleBaseURL: string;
   openaiCompatibleModelId: string;
+  cerebrasModelLabel: string;
+  cerebrasModelRef: string;
+  groqModelLabel: string;
+  groqModelRef: string;
   vimMode: boolean;
 };
 
@@ -66,10 +73,16 @@ const KEY_AUTOCOMPLETE_ENABLED = "autocompleteEnabled";
 const KEY_AUTOCOMPLETE_PROVIDER = "autocompleteProvider";
 const KEY_AUTOCOMPLETE_MODEL = "autocompleteModelId";
 const KEY_LMSTUDIO_BASE_URL = "lmstudioBaseURL";
+const KEY_LMSTUDIO_MODEL_LABEL = "lmstudioModelLabel";
+const KEY_LMSTUDIO_MODEL_REF = "lmstudioModelRef";
 const KEY_OLLAMA_BASE_URL = "ollamaBaseURL";
 const KEY_OLLAMA_MODEL_ID = "ollamaModelId";
 const KEY_OPENAI_COMPATIBLE_BASE_URL = "openaiCompatibleBaseURL";
 const KEY_OPENAI_COMPATIBLE_MODEL_ID = "openaiCompatibleModelId";
+const KEY_CEREBRAS_MODEL_LABEL = "cerebrasModelLabel";
+const KEY_CEREBRAS_MODEL_REF = "cerebrasModelRef";
+const KEY_GROQ_MODEL_LABEL = "groqModelLabel";
+const KEY_GROQ_MODEL_REF = "groqModelRef";
 const KEY_VIM_MODE = "vimMode";
 
 export const DEFAULT_PREFERENCES: Preferences = {
@@ -83,10 +96,16 @@ export const DEFAULT_PREFERENCES: Preferences = {
   autocompleteProvider: "cerebras",
   autocompleteModelId: DEFAULT_AUTOCOMPLETE_MODEL.cerebras,
   lmstudioBaseURL: LMSTUDIO_DEFAULT_BASE_URL,
+  lmstudioModelLabel: SHIPPED_EDITABLE_DEFAULTS.lmstudio.label,
+  lmstudioModelRef: SHIPPED_EDITABLE_DEFAULTS.lmstudio.modelRef,
   ollamaBaseURL: OLLAMA_DEFAULT_BASE_URL,
   ollamaModelId: DEFAULT_AUTOCOMPLETE_MODEL.ollama,
   openaiCompatibleBaseURL: "",
   openaiCompatibleModelId: DEFAULT_AUTOCOMPLETE_MODEL["openai-compatible"],
+  cerebrasModelLabel: SHIPPED_EDITABLE_DEFAULTS.cerebras.label,
+  cerebrasModelRef: SHIPPED_EDITABLE_DEFAULTS.cerebras.modelRef,
+  groqModelLabel: SHIPPED_EDITABLE_DEFAULTS.groq.label,
+  groqModelRef: SHIPPED_EDITABLE_DEFAULTS.groq.modelRef,
   vimMode: false,
 };
 
@@ -123,6 +142,12 @@ export async function loadPreferences(): Promise<Preferences> {
     lmstudioBaseURL:
       get<string>(KEY_LMSTUDIO_BASE_URL) ??
       DEFAULT_PREFERENCES.lmstudioBaseURL,
+    lmstudioModelLabel:
+      get<string>(KEY_LMSTUDIO_MODEL_LABEL) ??
+      DEFAULT_PREFERENCES.lmstudioModelLabel,
+    lmstudioModelRef:
+      get<string>(KEY_LMSTUDIO_MODEL_REF) ??
+      DEFAULT_PREFERENCES.lmstudioModelRef,
     ollamaBaseURL:
       get<string>(KEY_OLLAMA_BASE_URL) ?? DEFAULT_PREFERENCES.ollamaBaseURL,
     ollamaModelId:
@@ -133,6 +158,16 @@ export async function loadPreferences(): Promise<Preferences> {
     openaiCompatibleModelId:
       get<string>(KEY_OPENAI_COMPATIBLE_MODEL_ID) ??
       DEFAULT_PREFERENCES.openaiCompatibleModelId,
+    cerebrasModelLabel:
+      get<string>(KEY_CEREBRAS_MODEL_LABEL) ??
+      DEFAULT_PREFERENCES.cerebrasModelLabel,
+    cerebrasModelRef:
+      get<string>(KEY_CEREBRAS_MODEL_REF) ??
+      DEFAULT_PREFERENCES.cerebrasModelRef,
+    groqModelLabel:
+      get<string>(KEY_GROQ_MODEL_LABEL) ?? DEFAULT_PREFERENCES.groqModelLabel,
+    groqModelRef:
+      get<string>(KEY_GROQ_MODEL_REF) ?? DEFAULT_PREFERENCES.groqModelRef,
     vimMode: get<boolean>(KEY_VIM_MODE) ?? DEFAULT_PREFERENCES.vimMode,
   };
 }
@@ -189,6 +224,16 @@ export async function setLmstudioBaseURL(value: string): Promise<void> {
   await store.save();
 }
 
+export async function setLmstudioModelLabel(value: string): Promise<void> {
+  await store.set(KEY_LMSTUDIO_MODEL_LABEL, value);
+  await store.save();
+}
+
+export async function setLmstudioModelRef(value: string): Promise<void> {
+  await store.set(KEY_LMSTUDIO_MODEL_REF, value);
+  await store.save();
+}
+
 export async function setOllamaBaseURL(value: string): Promise<void> {
   await store.set(KEY_OLLAMA_BASE_URL, value);
   await store.save();
@@ -206,6 +251,26 @@ export async function setOpenAICompatibleBaseURL(value: string): Promise<void> {
 
 export async function setOpenAICompatibleModelId(value: string): Promise<void> {
   await store.set(KEY_OPENAI_COMPATIBLE_MODEL_ID, value);
+  await store.save();
+}
+
+export async function setCerebrasModelLabel(value: string): Promise<void> {
+  await store.set(KEY_CEREBRAS_MODEL_LABEL, value);
+  await store.save();
+}
+
+export async function setCerebrasModelRef(value: string): Promise<void> {
+  await store.set(KEY_CEREBRAS_MODEL_REF, value);
+  await store.save();
+}
+
+export async function setGroqModelLabel(value: string): Promise<void> {
+  await store.set(KEY_GROQ_MODEL_LABEL, value);
+  await store.save();
+}
+
+export async function setGroqModelRef(value: string): Promise<void> {
+  await store.set(KEY_GROQ_MODEL_REF, value);
   await store.save();
 }
 
@@ -231,10 +296,16 @@ export function onPreferencesChange(
     [KEY_AUTOCOMPLETE_PROVIDER]: "autocompleteProvider",
     [KEY_AUTOCOMPLETE_MODEL]: "autocompleteModelId",
     [KEY_LMSTUDIO_BASE_URL]: "lmstudioBaseURL",
+    [KEY_LMSTUDIO_MODEL_LABEL]: "lmstudioModelLabel",
+    [KEY_LMSTUDIO_MODEL_REF]: "lmstudioModelRef",
     [KEY_OLLAMA_BASE_URL]: "ollamaBaseURL",
     [KEY_OLLAMA_MODEL_ID]: "ollamaModelId",
     [KEY_OPENAI_COMPATIBLE_BASE_URL]: "openaiCompatibleBaseURL",
     [KEY_OPENAI_COMPATIBLE_MODEL_ID]: "openaiCompatibleModelId",
+    [KEY_CEREBRAS_MODEL_LABEL]: "cerebrasModelLabel",
+    [KEY_CEREBRAS_MODEL_REF]: "cerebrasModelRef",
+    [KEY_GROQ_MODEL_LABEL]: "groqModelLabel",
+    [KEY_GROQ_MODEL_REF]: "groqModelRef",
     [KEY_VIM_MODE]: "vimMode",
   };
   return store.onChange<unknown>((key, value) => {
